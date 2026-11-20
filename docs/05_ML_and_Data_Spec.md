@@ -285,7 +285,7 @@ Every bucket at or below 125 cycles improved; the > 125 bucket (57 of 259 and 67
 ### 7.6 Diagnostics (component detail report)
 - **Per-sensor deviation**: z-score of current EWM value vs. the asset's own healthy baseline (first 20 cycles, regime-normalized; fallback to fleet training baseline when < 20 cycles).
 - **Subsystem score** (0–100): `min(100, 100 × mean(|z| of the subsystem's input sensors) / 6)`.
-- **Top contributors**: LightGBM `pred_contrib=True` SHAP values aggregated per sensor (sum over its 5 features), reported as % of total |contribution| with direction relative to baseline.
+- **Top contributors**: LightGBM `pred_contrib=True` SHAP values aggregated per sensor (sum over its 5 features), reported as % of total |contribution| with direction relative to baseline. Online, SHAP is recomputed every 5 cycles per asset and reused in between (it costs as much as the prediction itself; diagnostics only, the RUL is computed every cycle).
 - Labelled "indicative" — no fault-mode ground truth exists (PRD non-goal 3).
 
 ## 8. Confidence, OOD & Drift Rules
@@ -299,6 +299,8 @@ Every bucket at or below 125 cycles improved; the > 125 bucket (57 of 259 and 67
 | Prediction jump | `|rul_pred(t) − rul_pred(t−1)| > 25` cycles | logged, debounced by hysteresis (`02` §3) |
 
 Thresholds live in `config/alerts.yaml`; values above are defaults to be confirmed in P5 against replay results.
+
+Online cadence (P3.5/P3.9): `LOW_CONFIDENCE`, `OOD` and the prediction-jump check run every cycle. The `DRIFT` KS test is recomputed every 10 cycles per asset and the flag holds in between. Both the KS and SHAP cadences are offset per asset (`crc32(asset_id) % 10`), so a fleet started together does not do that work on the same cycle. The KS statistic is an exact vectorised version of `scipy.stats.ks_2samp` (`pdm_ml.drift.reference.ks_statistic`, parity test in `ml/tests/test_drift_ks.py`).
 
 ### 8.1 Alert thresholds (defaults)
 Healthy `> 75`, Warning `(30, 75]`, Critical `≤ 30` cycles of predicted RUL; safety override Critical if `p10 ≤ 15`. Hysteresis in `02_AppFlow.md` §3.

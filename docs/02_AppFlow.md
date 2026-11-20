@@ -49,7 +49,7 @@ Defines every data path and UI state. Contracts referenced here are specified in
             Dashboard (frontend)
 ```
 
-Processing is **synchronous per message** inside the backend process (no external queue in MVP): validate → persist → features → infer → alert → persist → broadcast. Target p95 ≤ 250 ms.
+Processing is **in-process with no external queue** (MVP): validate → features → infer → alert → persist → broadcast. Each asset's messages are handled strictly in order. Since P3.9, messages that are already waiting are taken together as a micro-batch: one model call per profile and one DB transaction per batch. At low load a batch is a single message, so this is the per-message flow below. Target p95 ≤ 250 ms (measured: `reports/perf_p39.md`).
 
 ## 2. Ingestion & Inference Sequence (per message)
 
@@ -58,13 +58,13 @@ Processing is **synchronous per message** inside the backend process (no externa
 3. **Validate** against `TelemetryPayload` (Pydantic): schema version, required fields, types, physical range checks (`05` §3.3). Fail → dead-letter with `reason`, HTTP 422, counter `ingest_rejected_total{reason}`.
 4. **Dedupe/order**: key `(asset_id, cycle)`. Duplicate → ignore (idempotent, return 200 `duplicate`). `cycle < last_cycle` → store, flag `out_of_order`, do not re-infer past cycles. Gap (`cycle > last_cycle+1`) → store, flag `gap`, continue.
 5. **Auto-register** asset on first message (status `NEW`), using `profile` and `source` from the payload.
-6. **Persist** raw telemetry.
+6. **Stage** raw telemetry (written in the same transaction as the prediction, step 11; a DB failure stores neither and returns 503 so the client retries).
 7. **Feature build**: append to rolling buffer; if buffer length < `MIN_CYCLES` (=5) → prediction status `WARMING_UP` (no RUL shown).
 8. **Infer**: load model for `profile`; output `rul_pred`, `rul_p10`, `rul_p90`, `health_index`, `top_contributors`, `subsystem_scores`.
 9. **Confidence & drift checks** (`05` §8) → flags `LOW_CONFIDENCE`, `OOD`, `DRIFT`.
 10. **Alert engine** → new state; on transition emit `alert` event.
 11. **Persist** prediction + alert; **broadcast** `prediction` (and `alert`) on WebSocket.
-12. **Ack**: HTTP 200 body `{status, asset_id, cycle, prediction_id}`; MQTT: optional ack on `pdm/v1/{site}/{asset}/ack` (used by the Mode 2 harness to measure latency).
+12. **Ack**: HTTP 200 body `{status, asset_id, cycle, prediction_id, msg_id, state, rul_pred}`; MQTT: optional ack on `pdm/v1/{site}/{asset}/ack` (used by the Mode 2 harness to measure latency).
 
 ## 3. Asset Health State Machine
 

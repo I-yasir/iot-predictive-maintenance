@@ -1,0 +1,16 @@
+# Alert engine defaults (docs/02 §3, docs/05 §8, §8.1). Owner confirmed 75 / 30 on 2026-11-20.
+warning_rul: 75          # 30 < rul <= 75 -> WARNING
+critical_rul: 30         # rul <= 30 -> CRITICAL
+escalate_after: 2        # consecutive predictions needed to move towards CRITICAL
+deescalate_after: 5      # consecutive predictions needed to move back
+deescalate_margin: 5     # ... and rul must clear the threshold by this many cycles
+safety_p10: 15           # one prediction with p10 <= this -> CRITICAL immediately
+offline_factor: 3        # no data for 3x the expected interval -> OFFLINE
+degraded_after: 3        # consecutive rejected/OOD messages -> DEGRADED_DATA
+recover_after: 3         # consecutive valid messages leave DEGRADED_DATA
+low_confidence_width: 60 # p90 - p10 above this -> LOW_CONFIDENCE
+low_confidence_window: 15
+prediction_jump: 25
+drift_window: 50
+rate_limit_per_asset: 50 # msg/s; excess -> 429 / dropped
+clock_skew_s: 300

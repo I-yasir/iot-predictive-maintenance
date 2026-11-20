@@ -138,19 +138,21 @@ pytest 8.4.0, pytest-asyncio 1.0.0, pytest-cov 6.1.1, hypothesis 6.135.0 (payloa
 │   ├── pdm_iot/harness/  # mode2_harness.py: schema/rate/gap/latency/fault-injection checks + report
 │   └── tests/
 ├── backend/
-│   ├── pyproject.toml
+│   ├── pyproject.toml, alembic.ini
 │   ├── app/
-│   │   ├── main.py            # FastAPI app factory, lifespan (load models, start MQTT)
-│   │   ├── settings.py        # pydantic-settings
-│   │   ├── schemas/           # API DTOs, WS events (TelemetryPayload v1 lives in contracts/)
-│   │   ├── ingest/            # mqtt_subscriber.py, http_router.py, validator.py, dead_letter.py
-│   │   ├── inference/         # model_registry.py, buffer.py, service.py (imports pdm_ml.features)
-│   │   ├── alerts/            # state_machine.py, engine.py
-│   │   ├── api/               # assets, telemetry, predictions, alerts, diagnostics, sim, devices, stats, models
-│   │   ├── ws/                # hub.py (WebSocket broadcast)
-│   │   ├── sim/               # in-process replay controller (wraps iot.simulator)
-│   │   ├── db/                # models.py, session.py, migrations/ (alembic)
-│   │   └── observability/     # logging, /metrics
+│   │   ├── main.py            # app factory, lifespan (migrate, load models, MQTT, watchdog, heartbeat), auth + WS routes
+│   │   ├── settings.py        # pydantic-settings (env, see §4)
+│   │   ├── logging.py, metrics.py   # structlog JSON logs; Prometheus registry served at /metrics
+│   │   ├── registry.py        # CURRENT bundle per active profile, manifest-verified, fail fast
+│   │   ├── auth.py            # dashboard session cookie (HMAC-signed, HttpOnly, SameSite=Strict), API key check
+│   │   ├── ingest/            # service.py (validate, dedupe/order/gap, rate limit, dead letter, batch persist), mqtt.py
+│   │   ├── inference/         # service.py: AssetRuntime (streaming features + SeqStream) and batched inference
+│   │   ├── alerts/            # state_machine.py (02 §3)
+│   │   ├── api/               # ingest, assets (telemetry, predictions, diagnostics, report, ground truth), alerts, system, sim
+│   │   ├── ws/                # hub.py (WebSocket broadcast, thread-safe publish)
+│   │   ├── sim/               # in-process replay controller (wraps iot simulator) + internal transport
+│   │   └── db/                # models.py (SQLAlchemy Core), session.py, migrations/ (alembic, raw-SQL DDL)
+│   ├── perf/load_test.py      # P3.9 load test -> reports/perf_p39.{json,md}
 │   └── tests/
 ├── frontend/
 │   ├── package.json, vite.config.ts, tsconfig.json
@@ -176,7 +178,7 @@ pytest 8.4.0, pytest-asyncio 1.0.0, pytest-cov 6.1.1, hypothesis 6.135.0 (payloa
 | backend | 8000 | `/api/v1/*`, `/ws/v1/stream`, `/metrics`, `/healthz`, `/readyz` |
 | frontend | 8080 | nginx proxies `/api` and `/ws` to backend |
 
-All config via environment (`.env`, never committed): `DATABASE_URL`, `MQTT_HOST`, `MQTT_PORT`, `MQTT_USERNAME`, `MQTT_PASSWORD`, `MQTT_TOPIC_PREFIX=pdm/v1`, `INGEST_API_KEY`, `DASHBOARD_PASSWORD`, `MODEL_ROOT=ml/artifacts`, `ACTIVE_PROFILES=FD001,FD002,FD003,FD004`, `ALERTS_CONFIG=config/alerts.yaml`, `DATA_RAW_DIR=data/raw/cmapss`, `CORS_ORIGINS`, `LOG_LEVEL`.
+All config via environment (`.env`, never committed): `DATABASE_URL`, `MQTT_HOST`, `MQTT_PORT`, `MQTT_USERNAME` (default `pdm-backend`), `MQTT_BACKEND_PASSWORD`, `MQTT_TOPIC_PREFIX=pdm/v1`, `MQTT_WORKERS` (default 2), `INGEST_API_KEY`, `DASHBOARD_PASSWORD`, `SESSION_SECRET` (≥ 32 random chars; signs the session cookie), `MODEL_ROOT=ml/artifacts`, `ACTIVE_PROFILES=FD001,FD002,FD003,FD004`, `ALERTS_CONFIG=config/alerts.yaml`, `DATA_RAW_DIR=data/raw/cmapss`, `CORS_ORIGINS`, `LOG_LEVEL`, `AUTO_MIGRATE` (default true: `alembic upgrade head` at startup; `pdm-backend migrate` does it explicitly).
 
 ## 5. IoT Protocol & Payload Contract
 
@@ -263,6 +265,18 @@ Max payload size 4 KB. Sensor keys use C-MAPSS symbols (Table 2 of the PDF) — 
 - Backend memory ≤ 1 GB with 300 active assets (rolling buffers bounded to the profile's feature window, ≤ 100 cycles/asset).
 - Test coverage ≥ 80 % lines for `ml/pdm_ml` and `backend/app`.
 - Reproducibility: fixed seeds (`SEED=42`), data file SHA-256 recorded in `model_card.json`.
+
+### 8.1 Backend runtime design (P3, measured in P3.9)
+- **Per-asset ordering, batched work.** An MQTT message goes to one of `MQTT_WORKERS` queues by `crc32(asset_id)`, so one asset is always handled by the same worker, in order. A worker takes everything already waiting (≤ 128) as one batch: streaming features are updated in arrival order, then one LightGBM/M2 call per profile, then one transaction (`COPY` telemetry, pre-allocated prediction ids + `COPY` predictions, alerts, one `UPDATE … FROM unnest(…)` for asset rows). HTTP `/ingest` is a batch of one, `/ingest/batch` a real batch. If the transaction fails, nothing from the batch is stored, the per-asset dedupe state is rolled back and the caller gets 503 / no ack, so a retry is accepted.
+- **2 workers, not more.** The paho network thread needs the GIL to read and PUBACK messages. With 8 busy workers it was starved and throughput capped near 290 msg/s; with 2 the same machine sustains 500 msg/s.
+- **Threads**: LightGBM `num_threads=1` and `torch.set_num_threads(1)` in the backend (per-call thread start-up costs more than it saves on a few rows).
+- **`synchronous_commit=off`** on backend DB sessions: a crash can lose the last few hundred ms of committed rows, never corrupt them. This is acceptable for replayed telemetry and keeps commits off the latency path. Alerts are written in the same transaction.
+- **Internal transport.** The in-process replay controller (`/sim/replay/*`) feeds `IngestService` directly, without HTTP or MQTT. It is exempt from the per-asset rate limit, and the stored `source` is still `REPLAY`.
+- **Cadence.** RUL, intervals, OOD and LOW_CONFIDENCE run every cycle. SHAP runs every 5 cycles and the drift KS test every 10, offset per asset (`05` §8).
+- **Health index** = `clip(rul_pred / 125, 0, 1)` (`05` §7.4).
+- **Restart safety.** After a restart, an asset's rolling state is rebuilt from its stored telemetry for the current life on its first new message.
+
+P3.9 result (`reports/perf_p39.md`, 2026-11-20): 300 assets (FD001/FD002/FD004 train units, 12 `pdm-replay --continuous` MQTT publishers, QoS 1) for 300 s on one 4-vCPU host shared with the broker, TimescaleDB and the publishers. Results: **499.5 msg/s**, **p95 185 ms** (p50 81 ms) over the steady period after a 60 s warm-up, and **max RSS 732 MB**. Not scored: the cold start, when all 300 assets register within one second, peaks at 7.5 s p95. One 10 s window in the steady period reached 936 ms p95.
 
 ## 9. Dataset Quirks Affecting Engineering (keep in sync with `05`)
 - Raw files are whitespace-separated with **trailing spaces** → parse with `sep=r"\s+"`, `header=None`; expect exactly 26 columns.

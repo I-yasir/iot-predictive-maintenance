@@ -1,0 +1,63 @@
+[project]
+name = "pdm-backend"
+version = "0.1.0"
+description = "PdM-Live backend: ingestion, real-time RUL inference, alerts, REST + WebSocket API"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "pdm-ml",
+    "pdm-contracts",
+    "pdm-iot",
+    "fastapi==0.115.12",
+    "uvicorn[standard]==0.34.3",
+    "pydantic==2.11.5",
+    "pydantic-settings==2.9.1",
+    "SQLAlchemy==2.0.41",
+    "alembic==1.16.1",
+    "psycopg[binary]==3.2.9",
+    "paho-mqtt==2.1.0",
+    "httpx==0.28.1",
+    "structlog==25.4.0",
+    "prometheus-client==0.22.1",
+    "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest==8.4.0", "pytest-asyncio==1.0.0", "pytest-cov==6.1.1", "ruff==0.11.13", "mypy==1.16.0"]
+
+[project.scripts]
+pdm-backend = "app.main:run"
+
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.setuptools.package-data]
+app = ["db/migrations/*.py", "db/migrations/versions/*.py", "db/alembic.ini"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM"]
+ignore = ["E501", "B008"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app", "pdm_ml", "pdm_contracts", "pdm_iot"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+ignore_missing_imports = true
+disable_error_code = ["type-arg"]
+files = ["app"]
+exclude = ["app/db/migrations/"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+markers = ["broker: needs Mosquitto on localhost:1883"]
+filterwarnings = ["ignore::DeprecationWarning:matplotlib.*", "ignore:.*deprecated.*:DeprecationWarning"]

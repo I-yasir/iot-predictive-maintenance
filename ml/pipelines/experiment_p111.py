@@ -70,15 +70,17 @@ def run_profile(p: str, variants: dict[str, SeqConfig], oof_variant: str | None 
     for k, (tr_idx, va_idx) in enumerate(GroupKFold(5).split(train, groups=train.unit.to_numpy())):
         t0 = time.time()
         tr, va = train.iloc[tr_idx], train.iloc[va_idx]
-        fit_idx, es_idx = next(GroupShuffleSplit(n_splits=1, test_size=0.15, random_state=SEED + k)
-                               .split(tr, groups=tr.unit))
+        fit_idx, es_idx = next(
+            GroupShuffleSplit(n_splits=1, test_size=0.15, random_state=SEED + k).split(tr, groups=tr.unit)
+        )
         tr_fit, tr_es = tr.iloc[fit_idx], tr.iloc[es_idx]
         pipe = FeaturePipeline(p, sensors, window=act["window"]).fit(tr_fit)
         cols = pipe.feature_names
         F_fit, F_es, F_va = pipe.transform(tr_fit), pipe.transform(tr_es), pipe.transform(va)
         params = lgb_params(act["params"], cols)
-        model = fit_lgbm(F_fit[cols], _labels(F_fit, life, CAP), params,
-                         X_val=F_es[cols], y_val=_labels(F_es, life, CAP))
+        model = fit_lgbm(
+            F_fit[cols], _labels(F_fit, life, CAP), params, X_val=F_es[cols], y_val=_labels(F_es, life, CAP)
+        )
         T = truncation_points(F_va, life, rng)  # identical draws to run_cv
         y = (T.unit.map(life) - T.cycle).to_numpy(float)
         prim = (y >= PRIMARY_RUL_RANGE[0]) & (y <= PRIMARY_RUL_RANGE[1])
@@ -91,7 +93,9 @@ def run_profile(p: str, variants: dict[str, SeqConfig], oof_variant: str | None 
             X_fit, i_fit = build_windows(z_fit, su, cfg.seq_len)
             X_es, i_es = build_windows(z_es, su, cfg.seq_len)
             X_va, i_va = build_windows(z_va, su, cfg.seq_len)
-            m = SeqModel(su, cfg).fit(X_fit, _labels(i_fit, life, cfg.cap), X_es, _labels(i_es, life, cfg.cap))
+            m = SeqModel(su, cfg).fit(
+                X_fit, _labels(i_fit, life, cfg.cap), X_es, _labels(i_es, life, cfg.cap)
+            )
             epochs[name] += m.epochs
             pos = pd.MultiIndex.from_frame(i_va).get_indexer(pd.MultiIndex.from_frame(T[["unit", "cycle"]]))
             assert (pos >= 0).all()
@@ -106,19 +110,36 @@ def run_profile(p: str, variants: dict[str, SeqConfig], oof_variant: str | None 
                 lo = np.minimum(np.clip(q10.predict(T[cols]), 0, CAP), ens)
                 hi = np.maximum(np.clip(q90.predict(T[cols]), 0, CAP), ens)
                 oof.append(pd.DataFrame({"fold": k, "y": y, "pred": ens, "lo": lo, "hi": hi, "prim": prim}))
-        print(f"{p} fold {k} {time.time() - t0:.0f}s "
-              + " ".join(f"{n}={v['prim'][-1]:.2f}" for n, v in res.items()), file=sys.stderr, flush=True)
+        print(
+            f"{p} fold {k} {time.time() - t0:.0f}s "
+            + " ".join(f"{n}={v['prim'][-1]:.2f}" for n, v in res.items()),
+            file=sys.stderr,
+            flush=True,
+        )
 
-    summary = {n: {"rmse_10_150": round(float(np.mean(v["prim"])), 2), "std": round(float(np.std(v["prim"])), 2),
-                   "rmse_5_200": round(float(np.mean(v["wide"])), 2), "fold_10_150": [round(x, 2) for x in v["prim"]]}
-               for n, v in res.items()}
+    summary = {
+        n: {
+            "rmse_10_150": round(float(np.mean(v["prim"])), 2),
+            "std": round(float(np.std(v["prim"])), 2),
+            "rmse_5_200": round(float(np.mean(v["wide"])), 2),
+            "fold_10_150": [round(x, 2) for x in v["prim"]],
+        }
+        for n, v in res.items()
+    }
     base = summary["lgbm"]
     best = min((n for n in summary if n != "lgbm"), key=lambda n: summary[n]["rmse_10_150"])
-    adopt = (base["rmse_10_150"] - summary[best]["rmse_10_150"] >= 0.5
-             and summary[best]["rmse_5_200"] - base["rmse_5_200"] <= 0.2)
-    return {"candidates": summary, "epochs": {k: v for k, v in epochs.items()}, "best": best,
-            "adopt": bool(adopt), "decision": best if adopt else "lgbm",
-            "oof": pd.concat(oof, ignore_index=True) if oof else None}
+    adopt = (
+        base["rmse_10_150"] - summary[best]["rmse_10_150"] >= 0.5
+        and summary[best]["rmse_5_200"] - base["rmse_5_200"] <= 0.2
+    )
+    return {
+        "candidates": summary,
+        "epochs": {k: v for k, v in epochs.items()},
+        "best": best,
+        "adopt": bool(adopt),
+        "decision": best if adopt else "lgbm",
+        "oof": pd.concat(oof, ignore_index=True) if oof else None,
+    }
 
 
 def main() -> int:
@@ -126,8 +147,10 @@ def main() -> int:
     variants = M2_VARIANTS
     if "--quick" in sys.argv:
         variants = {"m2_L50": SeqConfig(seq_len=50, max_epochs=3)}
-    out = {"rule": "adopt best candidate if primary CV RMSE improves >= 0.5 and wide worsens <= 0.2",
-           "artifacts_root": str(artifacts_dir().name)}
+    out = {
+        "rule": "adopt best candidate if primary CV RMSE improves >= 0.5 and wide worsens <= 0.2",
+        "artifacts_root": str(artifacts_dir().name),
+    }
     for p in profiles:
         out[p] = run_profile(p, variants)
         out[p].pop("oof")

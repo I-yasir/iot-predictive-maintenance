@@ -60,3 +60,21 @@ esp32-profile:
 
 esp32-build:
 	cd iot/esp32 && pio run
+
+# ---- Phase 3: backend (needs `pip install -e contracts -e iot -e "backend[dev]"`, `make up` and a filled-in .env)
+.PHONY: backend migrate test-backend lint-backend perf
+
+backend:          ## API + MQTT subscriber on :8000 (migrates the DB on startup)
+	set -a; . ./.env; set +a; cd backend && uvicorn app.main:create_app --factory --host 0.0.0.0 --port 8000
+
+migrate:          ## alembic upgrade head
+	set -a; . ./.env; set +a; cd backend && pdm-backend migrate
+
+test-backend:     ## backend tests (each run creates and drops its own test database)
+	set -a; . ./.env; set +a; cd backend && $(PY) -m pytest
+
+lint-backend:
+	cd backend && ruff check . && mypy app
+
+perf:             ## P3.9 load test: 500 msg/s, 300 assets, 5 min -> reports/perf_p39.md
+	set -a; . ./.env; set +a; $(PY) backend/perf/load_test.py --rate 500 --assets 300 --duration 300

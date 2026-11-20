@@ -23,8 +23,9 @@ from pdm_ml.config import MIN_CYCLES, SEED
 AGE_SCALE = 200.0
 
 
-def build_windows(z: pd.DataFrame, sensors: tuple[str, ...], seq_len: int, min_cycles: int = MIN_CYCLES
-                  ) -> tuple[np.ndarray, pd.DataFrame]:
+def build_windows(
+    z: pd.DataFrame, sensors: tuple[str, ...], seq_len: int, min_cycles: int = MIN_CYCLES
+) -> tuple[np.ndarray, pd.DataFrame]:
     """z = regime-normalised frame (unit, cycle, sensors). Returns X (n, C, L) float32 and the index frame
     (unit, cycle) of each window's last cycle, gated like FeaturePipeline (row_in_unit >= min_cycles - 1)."""
     xs, idx = [], []
@@ -32,9 +33,9 @@ def build_windows(z: pd.DataFrame, sensors: tuple[str, ...], seq_len: int, min_c
     for u, g in z.sort_values(["unit", "cycle"], kind="stable").groupby("unit", sort=False):
         n = len(g)
         feat = np.zeros((n + seq_len - 1, c), np.float32)
-        feat[seq_len - 1:, : len(sensors)] = g[list(sensors)].to_numpy(np.float32)
-        feat[seq_len - 1:, -2] = 1.0
-        feat[seq_len - 1:, -1] = g.cycle.to_numpy(np.float32) / AGE_SCALE
+        feat[seq_len - 1 :, : len(sensors)] = g[list(sensors)].to_numpy(np.float32)
+        feat[seq_len - 1 :, -2] = 1.0
+        feat[seq_len - 1 :, -1] = g.cycle.to_numpy(np.float32) / AGE_SCALE
         w = sliding_window_view(feat, seq_len, axis=0)  # (n, C, L)
         keep = np.arange(n) >= min_cycles - 1
         xs.append(w[keep])
@@ -46,9 +47,12 @@ class CNN(nn.Module):
     def __init__(self, c_in: int, width: int = 32, k: int = 5) -> None:
         super().__init__()
         self.conv = nn.Sequential(
-            nn.Conv1d(c_in, width, k, padding=k // 2), nn.ReLU(),
-            nn.Conv1d(width, width, k, padding=2 * (k // 2), dilation=2), nn.ReLU(),
-            nn.Conv1d(width, width, k, padding=4 * (k // 2), dilation=4), nn.ReLU(),
+            nn.Conv1d(c_in, width, k, padding=k // 2),
+            nn.ReLU(),
+            nn.Conv1d(width, width, k, padding=2 * (k // 2), dilation=2),
+            nn.ReLU(),
+            nn.Conv1d(width, width, k, padding=4 * (k // 2), dilation=4),
+            nn.ReLU(),
         )
         self.head = nn.Sequential(nn.Linear(2 * width + 1, 64), nn.ReLU(), nn.Linear(64, 1))
 
@@ -101,13 +105,17 @@ class SeqModel:
         out = []
         for net in self.nets:
             net.eval()
-            preds = [net(torch.from_numpy(X[i:i + 4096])).numpy() for i in range(0, len(X), 4096)]
+            preds = [net(torch.from_numpy(X[i : i + 4096])).numpy() for i in range(0, len(X), 4096)]
             out.append(np.concatenate(preds))
         return np.clip(np.mean(out, axis=0) * self.cfg.cap, 0, self.cfg.cap)
 
     def state(self) -> dict[str, Any]:
-        return {"sensors": list(self.sensors), "cfg": self.cfg.__dict__, "epochs": self.epochs,
-                "nets": [n.state_dict() for n in self.nets]}
+        return {
+            "sensors": list(self.sensors),
+            "cfg": self.cfg.__dict__,
+            "epochs": self.epochs,
+            "nets": [n.state_dict() for n in self.nets],
+        }
 
     @classmethod
     def from_state(cls, st: dict[str, Any]) -> SeqModel:
@@ -120,8 +128,15 @@ class SeqModel:
         return m
 
 
-def _train_one(X: np.ndarray, y: np.ndarray, X_val: np.ndarray | None, y_val: np.ndarray | None,
-               cfg: SeqConfig, seed: int, fixed_epochs: int | None = None) -> tuple[CNN, int]:
+def _train_one(
+    X: np.ndarray,
+    y: np.ndarray,
+    X_val: np.ndarray | None,
+    y_val: np.ndarray | None,
+    cfg: SeqConfig,
+    seed: int,
+    fixed_epochs: int | None = None,
+) -> tuple[CNN, int]:
     torch.manual_seed(seed)
     rng = np.random.default_rng(seed)
     net = CNN(X.shape[1], cfg.width)
@@ -133,7 +148,7 @@ def _train_one(X: np.ndarray, y: np.ndarray, X_val: np.ndarray | None, y_val: np
         net.train()
         perm = torch.from_numpy(rng.permutation(len(X)))
         for i in range(0, len(X), cfg.batch):
-            b = perm[i:i + cfg.batch]
+            b = perm[i : i + cfg.batch]
             opt.zero_grad()
             loss = nn.functional.mse_loss(net(Xt[b]), yt[b])
             loss.backward()
@@ -142,8 +157,12 @@ def _train_one(X: np.ndarray, y: np.ndarray, X_val: np.ndarray | None, y_val: np
             continue
         net.eval()
         with torch.no_grad():
-            pv = np.concatenate([net(torch.from_numpy(X_val[i:i + 4096])).numpy()
-                                 for i in range(0, len(X_val), 4096)]) * cfg.cap
+            pv = (
+                np.concatenate(
+                    [net(torch.from_numpy(X_val[i : i + 4096])).numpy() for i in range(0, len(X_val), 4096)]
+                )
+                * cfg.cap
+            )
         err = float(np.sqrt(np.mean((np.clip(pv, 0, cfg.cap) - y_val) ** 2)))
         if err < best - 1e-3:
             best, best_state, best_ep, bad = err, copy.deepcopy(net.state_dict()), ep, 0

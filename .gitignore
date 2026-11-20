@@ -31,3 +31,4 @@ iot/esp32/.pio/
 # PlatformIO build output
 iot/esp32/.pio/
 .hypothesis/
+.coverage

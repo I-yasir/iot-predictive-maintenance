@@ -61,6 +61,7 @@ class ReplayConfig:
     site_id: str = "lab"
     asset_prefix: str = ""
     seed: int = 42
+    continuous: bool = False  # every unit restarts (new life) as soon as it ends: constant fleet size, never stops
 
 
 @dataclass
@@ -107,13 +108,15 @@ def build_messages(cfg: ReplayConfig) -> Iterator[list[dict[str, Any]]]:
     groups = {u: g.to_dict("records") for u, g in df.groupby("unit")}
     seq = {u: 0 for u in units}
     max_len = max(len(g) for g in groups.values())
-    for i in range(max_len):
+    i = 0
+    while cfg.continuous or i < max_len:
         tick = []
         for u in units:
             rows = groups[u]
-            if i >= len(rows):
+            if i >= len(rows) and not cfg.continuous:
                 continue
-            r = rows[i]
+            j = i % len(rows)
+            r = rows[j]
             seq[u] += 1
             aid = asset_id_for(cfg.profile, cfg.split, u, cfg.asset_prefix)
             tick.append(build_payload(
@@ -122,9 +125,10 @@ def build_messages(cfg: ReplayConfig) -> Iterator[list[dict[str, Any]]]:
                 settings={k: r[k] for k in SETTINGS}, sensors={k: r[k] for k in sensors},
                 msg_prefix=f"replay-{aid}",
                 meta={"true_rul": int(r["true_rul"]), "split": cfg.split, "unit": u, "len": len(rows),
-                      "eol": i == len(rows) - 1},
+                      "eol": j == len(rows) - 1},
             ))
         yield tick
+        i += 1
 
 
 class ReplaySimulator:
@@ -241,11 +245,14 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--random", type=int, dest="random_n", help="replay N random units")
     ap.add_argument("--speed", type=float, default=5.0, help="cycles per second (0 = as fast as possible)")
     ap.add_argument("--loop", action="store_true")
+    ap.add_argument("--continuous", action="store_true",
+                    help="restart each unit as soon as it ends (constant load; used by the P3.9 load test)")
     ap.add_argument("--site", default=os.environ.get("MQTT_SITE_ID", "lab"))
     ap.add_argument("--transport", default="mqtt", choices=["mqtt", "http", "stdout"])
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s", stream=sys.stderr)
-    cfg = ReplayConfig(args.profile, args.split, args.units, args.random_n, args.speed, args.loop, args.site)
+    cfg = ReplayConfig(args.profile, args.split, args.units, args.random_n, args.speed, args.loop, args.site,
+                       continuous=args.continuous)
     transport = make_transport(args.transport)
     sim = ReplaySimulator(cfg, transport)
     try:

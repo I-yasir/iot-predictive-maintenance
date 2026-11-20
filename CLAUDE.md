@@ -56,4 +56,6 @@ make replay-demo # Mode 1: FD001 test unit 34 (or: pdm-replay --profile FD001 --
 make harness     # Mode 2 harness against virtual ESP32 (or real board)
 make test        # ML tests; make test-iot for contracts + IoT (broker tests need make up)
 make esp32-build # PlatformIO build of iot/esp32 (flashing: iot/esp32/README.md)
+make backend     # Phase 3 API + MQTT subscriber on :8000 (make migrate, make test-backend, make lint-backend)
+make perf        # P3.9 load test (500 msg/s, 300 assets, 5 min) -> reports/perf_p39.md
 ```

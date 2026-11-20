@@ -36,38 +36,68 @@ def build(profile: str, variant: str, version: str, experiment: dict[str, Any]) 
     cal_cov = float(((oof.y >= (oof.lo - q).clip(lower=0)) & (oof.y <= oof.hi + q)).mean())
     ens = calib["candidates"][f"ens_lgbm+{variant}"]
     epochs = int(np.median(experiment["epochs"][variant]))
-    print(f"{profile}: ensemble CV {ens['rmse_10_150']} (wide {ens['rmse_5_200']}); coverage raw {raw_cov:.3f} "
-          f"-> conformal {cal_cov:.3f} (q={q:.1f}); M2 refit {epochs} epochs", file=sys.stderr, flush=True)
+    print(
+        f"{profile}: ensemble CV {ens['rmse_10_150']} (wide {ens['rmse_5_200']}); coverage raw {raw_cov:.3f} "
+        f"-> conformal {cal_cov:.3f} (q={q:.1f}); M2 refit {epochs} epochs",
+        file=sys.stderr,
+        flush=True,
+    )
 
     base = load_bundle(artifacts_dir(), profile)
     if base.seq is not None:
         raise RuntimeError(f"{profile}: CURRENT ({base.version}) already has an M2 model")
     train = load_split(profile, "train")
     life = train.groupby("unit").cycle.max()
-    X, idx = build_windows(base.pipeline.normalize(train), base.pipeline.sensors_used, cfg.seq_len,
-                           base.pipeline.min_cycles)
+    X, idx = build_windows(
+        base.pipeline.normalize(train), base.pipeline.sensors_used, cfg.seq_len, base.pipeline.min_cycles
+    )
     y = np.minimum(idx.unit.map(life).to_numpy() - idx.cycle.to_numpy(), cfg.cap).astype(np.float32)
     seq = SeqModel(base.pipeline.sensors_used, cfg).fit_fixed(X, y, epochs)
 
     m = base.model
     model = RULModel(m.feature_names, CAP, m.point, m.q10, m.q90, q, needs_seq=True)
     card = {k: v for k, v in base.card.items() if k not in ("test", "seq_model", "library_versions")}
-    card.update({
-        "created_utc": dt.datetime.now(dt.UTC).isoformat(timespec="seconds"),
-        "git_sha": git_sha(),
-        "derived_from": base.version,
-        "point_estimate": f"mean(LightGBM {base.version}, M2 {variant})",
-        "cv": {**base.card["cv"], "rmse_mean": ens["rmse_10_150"], "rmse_std": ens["std"],
-               "rmse_wide_mean": ens["rmse_5_200"], "lgbm_rmse_mean": base.card["cv"]["rmse_mean"],
-               "interval_coverage_raw": raw_cov, "interval_coverage_conformal": cal_cov},
-        "test": None,
-    })
-    bundle = ModelBundle(profile, version, base.pipeline, model, base.fleet_baseline, base.subsystem_of,
-                         base.drift, card, seq=seq)
+    card.update(
+        {
+            "created_utc": dt.datetime.now(dt.UTC).isoformat(timespec="seconds"),
+            "git_sha": git_sha(),
+            "derived_from": base.version,
+            "point_estimate": f"mean(LightGBM {base.version}, M2 {variant})",
+            "cv": {
+                **base.card["cv"],
+                "rmse_mean": ens["rmse_10_150"],
+                "rmse_std": ens["std"],
+                "rmse_wide_mean": ens["rmse_5_200"],
+                "lgbm_rmse_mean": base.card["cv"]["rmse_mean"],
+                "interval_coverage_raw": raw_cov,
+                "interval_coverage_conformal": cal_cov,
+            },
+            "test": None,
+        }
+    )
+    bundle = ModelBundle(
+        profile,
+        version,
+        base.pipeline,
+        model,
+        base.fleet_baseline,
+        base.subsystem_of,
+        base.drift,
+        card,
+        seq=seq,
+    )
     path = write_bundle(artifacts_dir(), bundle)
     print(f"{profile}: wrote {path}", file=sys.stderr)
-    return {"profile": profile, "variant": variant, "conformal_q": q, "coverage_raw": raw_cov,
-            "coverage_conformal": cal_cov, "cv": ens, "epochs": epochs, "derived_from": base.version}
+    return {
+        "profile": profile,
+        "variant": variant,
+        "conformal_q": q,
+        "coverage_raw": raw_cov,
+        "coverage_conformal": cal_cov,
+        "cv": ens,
+        "epochs": epochs,
+        "derived_from": base.version,
+    }
 
 
 def main(argv: list[str] | None = None) -> int:

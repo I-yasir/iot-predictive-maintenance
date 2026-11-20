@@ -79,11 +79,13 @@ class ModelBundle:
         F = self.pipeline.transform(df)
         seq_point = None
         if self.seq is not None:
-            X, idx = build_windows(self.pipeline.normalize(df), self.seq.sensors, self.seq.cfg.seq_len,
-                                   self.pipeline.min_cycles)
-            if not (idx.unit.to_numpy() == F.unit.to_numpy()).all() or not (
-                idx.cycle.to_numpy() == F.cycle.to_numpy()
-            ).all():
+            X, idx = build_windows(
+                self.pipeline.normalize(df), self.seq.sensors, self.seq.cfg.seq_len, self.pipeline.min_cycles
+            )
+            if (
+                not (idx.unit.to_numpy() == F.unit.to_numpy()).all()
+                or not (idx.cycle.to_numpy() == F.cycle.to_numpy()).all()
+            ):
                 raise RuntimeError("sequence windows and feature rows are misaligned")
             seq_point = self.seq.predict(X)
         pred, lo, hi = self.model.predict(F, seq_point)
@@ -123,8 +125,9 @@ def write_bundle(root: Path, bundle: ModelBundle, set_current: bool = True) -> P
         "feature_names": bundle.model.feature_names,
         "cap": bundle.model.cap,
         "conformal_q": bundle.model.conformal_q,
-        "seq_model": None if bundle.seq is None else {"file": SEQ_FILE, **bundle.seq.cfg.__dict__,
-                                                      "epochs": bundle.seq.epochs},
+        "seq_model": None
+        if bundle.seq is None
+        else {"file": SEQ_FILE, **bundle.seq.cfg.__dict__, "epochs": bundle.seq.epochs},
         "library_versions": library_versions(),
     }
     (out / "model_card.json").write_text(json.dumps(card, indent=2, default=float))
