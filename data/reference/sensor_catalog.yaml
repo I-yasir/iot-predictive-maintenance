@@ -1,0 +1,30 @@
+# C-MAPSS sensor catalog. Source: Saxena et al. (PHM08), Table 2 ("Damage Propagation Modeling.pdf").
+# raw = column name in readme order (sensor measurement n); symbol = payload key used everywhere else.
+# subsystem = approximate gas-path station grouping for UI diagnostics (not a fault label).
+# kind: measurement | setpoint (control demand, never a model input)
+sensors:
+  - {raw: s1,  symbol: T2,        description: Total temperature at fan inlet,  unit: "°R",      subsystem: Fan,    kind: measurement}
+  - {raw: s2,  symbol: T24,       description: Total temperature at LPC outlet, unit: "°R",      subsystem: LPC,    kind: measurement}
+  - {raw: s3,  symbol: T30,       description: Total temperature at HPC outlet, unit: "°R",      subsystem: HPC,    kind: measurement}
+  - {raw: s4,  symbol: T50,       description: Total temperature at LPT outlet, unit: "°R",      subsystem: LPT,    kind: measurement}
+  - {raw: s5,  symbol: P2,        description: Pressure at fan inlet,           unit: psia,      subsystem: Fan,    kind: measurement}
+  - {raw: s6,  symbol: P15,       description: Total pressure in bypass duct,   unit: psia,      subsystem: Fan,    kind: measurement}
+  - {raw: s7,  symbol: P30,       description: Total pressure at HPC outlet,    unit: psia,      subsystem: HPC,    kind: measurement}
+  - {raw: s8,  symbol: Nf,        description: Physical fan speed,              unit: rpm,       subsystem: Fan,    kind: measurement}
+  - {raw: s9,  symbol: Nc,        description: Physical core speed,             unit: rpm,       subsystem: HPC,    kind: measurement}
+  - {raw: s10, symbol: epr,       description: Engine pressure ratio (P50/P2),  unit: "-",       subsystem: Engine, kind: measurement}
+  - {raw: s11, symbol: Ps30,      description: Static pressure at HPC outlet,   unit: psia,      subsystem: HPC,    kind: measurement}
+  - {raw: s12, symbol: phi,       description: Ratio of fuel flow to Ps30,      unit: pps/psi,   subsystem: Burner, kind: measurement}
+  - {raw: s13, symbol: NRf,       description: Corrected fan speed,             unit: rpm,       subsystem: Fan,    kind: measurement}
+  - {raw: s14, symbol: NRc,       description: Corrected core speed,            unit: rpm,       subsystem: HPC,    kind: measurement}
+  - {raw: s15, symbol: BPR,       description: Bypass ratio,                    unit: "-",       subsystem: Fan,    kind: measurement}
+  - {raw: s16, symbol: farB,      description: Burner fuel-air ratio,           unit: "-",       subsystem: Burner, kind: measurement}
+  - {raw: s17, symbol: htBleed,   description: Bleed enthalpy,                  unit: "-",       subsystem: HPT,    kind: measurement}
+  - {raw: s18, symbol: Nf_dmd,    description: Demanded fan speed,              unit: rpm,       subsystem: Fan,    kind: setpoint}
+  - {raw: s19, symbol: PCNfR_dmd, description: Demanded corrected fan speed,    unit: rpm,       subsystem: Fan,    kind: setpoint}
+  - {raw: s20, symbol: W31,       description: HPT coolant bleed,               unit: lbm/s,     subsystem: HPT,    kind: measurement}
+  - {raw: s21, symbol: W32,       description: LPT coolant bleed,               unit: lbm/s,     subsystem: LPT,    kind: measurement}
+settings:
+  - {name: setting_1, description: "Operational setting 1 (≈ altitude, kft — per PDF interpretation)"}
+  - {name: setting_2, description: "Operational setting 2 (≈ Mach number)"}
+  - {name: setting_3, description: "Operational setting 3 (≈ throttle resolver angle)"}

@@ -1,0 +1,118 @@
+"""Leakage-safe grouped cross-validation (docs/05 §6).
+
+* Split by engine (GroupKFold); FeaturePipeline refit inside each fold on fold-train engines only.
+* Early stopping uses an inner hold-out of fold-train engines (never the validation fold).
+* Validation mimics the official test set: truncation points with true remaining life in [5, 200]
+  and at least min(31, life) cycles observed, scored against the UNCAPPED truth so caps are comparable.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Any
+
+import numpy as np
+import pandas as pd
+from sklearn.model_selection import GroupKFold, GroupShuffleSplit
+
+from pdm_ml.config import SEED
+from pdm_ml.evaluate.metrics import nasa_score, rmse
+from pdm_ml.features.pipeline import FeaturePipeline
+from pdm_ml.models.lgbm import RidgeBaseline, fit_lgbm, fit_quantile, lgb_params
+
+TRUNC_PER_UNIT = 5
+TRUNC_RUL_RANGE = (5, 200)
+MIN_OBSERVED = 31
+
+
+@dataclass
+class CVConfig:
+    profile: str
+    sensors: tuple[str, ...]
+    cap: int
+    params: dict[str, Any] = field(default_factory=dict)
+    quantiles: bool = False
+    baseline: bool = False
+
+    def label(self) -> str:
+        p = ",".join(f"{k}={v}" for k, v in sorted(self.params.items()))
+        return f"cap={self.cap};n_sensors={len(self.sensors)};{p}"
+
+
+def truncation_points(feats: pd.DataFrame, life: pd.Series, rng: np.random.Generator) -> pd.DataFrame:
+    rows = []
+    for u, g in feats.groupby("unit", sort=False):
+        L = int(life[u])
+        rem = L - g.cycle
+        cand = g[
+            (g.cycle >= min(MIN_OBSERVED, L)) & (rem >= TRUNC_RUL_RANGE[0]) & (rem <= TRUNC_RUL_RANGE[1])
+        ]
+        if len(cand):
+            rows.append(
+                cand.sample(min(TRUNC_PER_UNIT, len(cand)), random_state=int(rng.integers(2**31 - 1)))
+            )
+    return pd.concat(rows)
+
+
+def run_cv(train: pd.DataFrame, cfg: CVConfig, n_splits: int = 5) -> dict[str, Any]:
+    rng = np.random.default_rng(SEED)
+    life = train.groupby("unit").cycle.max()
+    units = train.unit.to_numpy()
+    fold_rmse, fold_score, ridge_rmse, iters = [], [], [], []
+    oof: list[pd.DataFrame] = []
+    for k, (tr_idx, va_idx) in enumerate(GroupKFold(n_splits).split(train, groups=units)):
+        tr, va = train.iloc[tr_idx], train.iloc[va_idx]
+        # inner split of fold-train engines for early stopping
+        inner = GroupShuffleSplit(n_splits=1, test_size=0.15, random_state=SEED + k)
+        fit_idx, es_idx = next(inner.split(tr, groups=tr.unit))
+        tr_fit, tr_es = tr.iloc[fit_idx], tr.iloc[es_idx]
+
+        pipe = FeaturePipeline(cfg.profile, cfg.sensors).fit(tr_fit)
+        cols = pipe.feature_names
+        F_fit, F_es, F_va = pipe.transform(tr_fit), pipe.transform(tr_es), pipe.transform(va)
+        # labels aligned with gated feature rows via (unit, cycle); life = last cycle of run-to-failure unit
+        y_fit = _labels(F_fit, life, cfg.cap)
+        y_es = _labels(F_es, life, cfg.cap)
+        params = lgb_params(cfg.params, cols)
+        model = fit_lgbm(F_fit[cols], y_fit, params, X_val=F_es[cols], y_val=y_es)
+        iters.append(model.best_iteration or model.current_iteration())
+
+        T = truncation_points(F_va, life, rng)
+        y_true = (T.unit.map(life) - T.cycle).to_numpy(float)
+        pred = np.clip(model.predict(T[cols], num_iteration=model.best_iteration), 0, cfg.cap)
+        fold_rmse.append(rmse(pred, y_true))
+        fold_score.append(nasa_score(pred, y_true) / len(T))
+        rec = pd.DataFrame(
+            {"fold": k, "unit": T.unit.to_numpy(), "cycle": T.cycle.to_numpy(), "y": y_true, "pred": pred}
+        )
+        if cfg.quantiles:
+            n = iters[-1]
+            q10 = fit_quantile(F_fit[cols], y_fit, params, 0.1, n)
+            q90 = fit_quantile(F_fit[cols], y_fit, params, 0.9, n)
+            lo = np.minimum(np.clip(q10.predict(T[cols]), 0, cfg.cap), pred)
+            hi = np.maximum(np.clip(q90.predict(T[cols]), 0, cfg.cap), pred)
+            rec["lo"], rec["hi"] = lo, hi
+        if cfg.baseline:
+            rb = RidgeBaseline().fit(F_fit[cols], y_fit)
+            ridge_rmse.append(rmse(np.clip(rb.predict(T[cols]), 0, cfg.cap), y_true))
+        oof.append(rec)
+    out: dict[str, Any] = {
+        "config": cfg.label(),
+        "cap": cfg.cap,
+        "sensors": list(cfg.sensors),
+        "params": cfg.params,
+        "rmse_mean": float(np.mean(fold_rmse)),
+        "rmse_std": float(np.std(fold_rmse)),
+        "nasa_score_per_unit_mean": float(np.mean(fold_score)),
+        "best_iteration_mean": int(np.mean(iters)),
+        "fold_rmse": [float(x) for x in fold_rmse],
+        "oof": pd.concat(oof, ignore_index=True),
+    }
+    if cfg.baseline:
+        out["ridge_rmse_mean"] = float(np.mean(ridge_rmse))
+        out["ridge_rmse_std"] = float(np.std(ridge_rmse))
+    return out
+
+
+def _labels(feats: pd.DataFrame, life: pd.Series, cap_value: int) -> np.ndarray:
+    return np.minimum(feats.unit.map(life).to_numpy() - feats.cycle.to_numpy(), cap_value).astype(float)

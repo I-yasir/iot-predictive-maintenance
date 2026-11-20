@@ -155,7 +155,8 @@ Online buffer per asset holds the last 64 raw cycles + EWM state + first-5-cycle
 1. **Official test sets (`test_FD00x` + `RUL_FD00x`) are untouched until final evaluation** (P1.8). No tuning on them.
 2. **Split by engine unit, never by row.** Validation = `GroupKFold(n_splits=5, groups=unit)` on training units. Rows from one engine never appear in both fit and validation folds (prevents trajectory leakage).
 3. **All fitted preprocessors** (regime KMeans, scalers, drift reference, diagnostic baselines) are fit inside each fold on fold-train units only (sklearn-style pipeline per fold).
-4. **Truncated-validation sampling:** test units are truncated before failure, so validation scoring mimics that — for each validation unit, sample 5 random truncation points uniformly in `[min(31, life), life]` and score the prediction at the truncation point against true remaining cycles. Also report all-row RMSE for reference.
+4. **Truncated-validation sampling** (`pdm_ml/evaluate/cv.py`): test units are truncated before failure, so validation mimics that — for each validation unit, sample up to 5 truncation points among rows with ≥ min(31, life) observed cycles and true remaining life in **[5, 200]**, and score against the **uncapped** truth (so different caps are comparable). Early stopping uses an inner 15 % hold-out of fold-train engines, never the validation fold.
+   ⚠️ Known issue (2026-11-20): the PDF documents challenge test RULs of 10–150 cycles; FD001/FD003 test truths max at 145. The 200 upper bound over-rewards higher caps for those profiles (see §7.5.2).
 5. Training rows: all rows with `cycle ≥ 5` (warm-up gating).
 6. Hyperparameter search: Optuna is **not** used; a fixed small grid (§7.2) evaluated by 5-fold grouped CV mean truncated-RMSE.
 7. Final model per profile refit on all training units with the chosen config; evaluated once on the official test set; results written to `model_card.json` and must meet `01_PRD.md` §4.1.
@@ -202,6 +203,20 @@ From `ml/notebooks/01_data_audit_and_baseline.ipynb`: fixed LightGBM config (num
 | FD004 | 18.0 / 13.7 | 24.9 | 29.3 | 4,050 | 0.57 | 0.89 | no (target 24) |
 
 Test RMSE by true-RUL bucket (≤30 / 31–75 / 76–125 / >125): FD001 3.8 / 7.9 / 14.5 / 20.7 · FD002 3.2 / 12.6 / 13.9 / 46.7 · FD003 3.0 / 7.6 / 15.9 / 18.2 · FD004 6.0 / 14.6 / 15.2 / 43.0. No healthy engine was predicted Critical in any profile. Takeaways: (1) FD002/FD004 misses come from the >125 bucket (cap effect, Q15); (2) raw quantile intervals under-cover (0.56–0.69 vs. 0.80 target) — split-conformal widening (§7.3) is required.
+
+### 7.5.2 Phase-1 pipeline results (`make train` + `make evaluate`, bundle `20261120-p1`)
+
+Selection by grouped CV (4-point grid × caps {110, 125, 140, 160} × extra-sensor ablation for FD002/FD004). Cap 160 was added after 140 won at the grid edge in every profile (CV-only decision, before any test evaluation). P15/farB did not improve FD002/FD004 by ≥ 0.3 cycles and are not used.
+
+| Profile | Selected config | CV RMSE Ridge / LGBM | Test RMSE | NASA score | Coverage (conformal) | Critical recall | False Critical | Target |
+|---|---|---|---|---|---|---|---|---|
+| FD001 | cap 140, leaves 15, min_child 50 | 26.2 / 20.6 | 16.2 | 411 | 0.94 | 0.92 | 0 % | ❌ RMSE ≤ 16 (score ✅) |
+| FD002 | cap 140, leaves 31, min_child 20 | 27.3 / 22.9 | 22.8 | 3,962 | 0.80 | 0.97 | 0 % | ❌ RMSE ≤ 22, score ≤ 3,000 |
+| FD003 | cap 160, leaves 15, min_child 20 | 27.7 / 20.6 | 17.9 | 1,085 | 0.86 | 0.90 | 0 % | ❌ RMSE ≤ 16, score ≤ 600 |
+| FD004 | cap 160, leaves 31, min_child 50 | 30.9 / 24.6 | 22.6 | 4,395 | 0.82 | 0.81 | 0 % | ✅ RMSE ≤ 24, score ≤ 4,500 |
+
+CV RMSE here is against uncapped truth up to 200 cycles, so it is not comparable with the capped-truth CV numbers in §7.5.1. LightGBM beats Ridge by 16–26 % in CV for every profile. Conformal widening brings interval coverage into 0.80–0.94, but intervals are wide (mean 91–107 cycles), so the `LOW_CONFIDENCE` width rule (> 60) would fire on most predictions; revisit in P5.6.
+**Diagnosis:** the notebook (cap 125, uncapped CV not used) reached 12.6 RMSE on FD001/FD003. Higher caps help truths in 125–200, which barely exist in the FD001/FD003 test sets (max 145), and hurt the 76–125 bucket (FD001 20.8, FD003 26.3). Fix = truncation range per §6 item 4 warning. Re-evaluating after that fix is a second look at the test set and must be reported as such.
 
 ### 7.6 Diagnostics (component detail report)
 - **Per-sensor deviation**: z-score of current EWM value vs. the asset's own healthy baseline (first 20 cycles, regime-normalized; fallback to fleet training baseline when < 20 cycles).
@@ -330,5 +345,7 @@ Retention (TimescaleDB policies): telemetry 30 days, predictions 90 days, alerts
 | Q11 | Multi-fault sensors flip correlation sign (FD003/4) | keep sensors; tree model handles interaction |
 | Q12 | No timestamps; cycle is the time axis | replay maps cycles→seconds via `speed_cps` |
 | Q13 | Data delivered in `Dataset/`, not `data/` | moved to `data/raw/cmapss/` on 2026-11-20 (done) |
-| Q14 | Truncated-validation RMSE against *uncapped* truth is dominated by early truncation points (true RUL up to 500) and is meaningless (30–60 cycles) | CV scores use the capped truth; official test uses uncapped truth as specified |
-| Q15 | FD002/FD004 test sets contain many engines with true RUL > 125 (up to 194/195); the cap makes them the main error source | cap ablation {110,125,140} in P1.6 is mandatory for these profiles |
+| Q14 | Truncation points with unrestricted remaining life (up to 500) make CV RMSE meaningless (30–60 cycles) | CV restricts truncation to remaining life ≤ 200 and scores uncapped truth (§6 item 4) |
+| Q15 | FD002/FD004 test sets contain many engines with true RUL > 125 (up to 194/195); the cap makes them the main error source | cap ablation in P1.6 picked 140 (FD002) / 160 (FD004) |
+| Q16 | LightGBM rejects `monotone_constraints` with the quantile objective | constraint applied to the point model only |
+| Q17 | Best cap depends on the remaining-life range validated on; FD001/FD003 test truths ≤ 145 vs FD002/FD004 ≤ 195 | see §7.5.2 |

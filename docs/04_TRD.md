@@ -120,7 +120,7 @@ pytest 8.4.0, pytest-asyncio 1.0.0, pytest-cov 6.1.1, hypothesis 6.135.0 (payloa
 │   │   └── drift/       # reference stats, OOD checks
 │   ├── pipelines/       # CLI entrypoints: audit.py, build_features.py, train.py, evaluate.py, export_esp32_profile.py
 │   ├── notebooks/01_data_audit_and_baseline.ipynb   # documented EDA + audit + baseline (exploratory, not production)
-│   ├── artifacts/{profile}/{model_version}/   # bundle (gitignored except model_card.json)
+│   ├── artifacts/{profile}/{model_version}/   # bundle, committed (~0.7 MB each, MANIFEST-verified)
 │   └── tests/
 ├── iot/
 │   ├── contracts/telemetry_v1.schema.json     # JSON Schema (generated from Pydantic, committed)
@@ -265,5 +265,7 @@ Max payload size 4 KB. Sensor keys use C-MAPSS symbols (Table 2 of the PDF) — 
 - `readme.txt` says columns go up to "sensor measurement 26" but there are **21 sensors** (26 columns = unit + cycle + 3 settings + 21 sensors).
 - `readme.txt` FD004 counts are **swapped**: actual train = 249 units, test = 248 units (`RUL_FD004.txt` has 248 rows).
 - Readme contains non-UTF-8 bytes (Windows-1252 quotes) → read with `encoding="cp1252"` if parsed.
+- Model bundles are small (~0.7 MB per profile) so they are committed; the backend can start without retraining.
+- `make test` takes ~2 min (loads all four subsets); run it alone, CPU contention with training slows both.
 - The owner's laptop currently has system Python 3.10 (pandas 2.3.3, numpy 2.2.6). Use `uv` to install Python 3.12 for the project venv; do not rely on system Python.
 - Data was delivered in `Dataset/`; moved to `data/raw/cmapss/` on 2026-11-20 (SHA-256 in `data/reference/raw_checksums.txt`, verified identical to the files inside `CMAPSSData.zip`).

@@ -1,12 +1,8 @@
 {
-  "generated_by": "ml/notebooks/01_data_audit_and_baseline.ipynb",
-  "library_versions": {
-    "pandas": "2.3.3",
-    "numpy": "2.2.6",
-    "sklearn": "1.6.1",
-    "lightgbm": "4.6.0"
-  },
+  "generated_by": "ml/pipelines/audit.py",
   "files": {
+    "CMAPSSData.zip": "74bef434a34db25c7bf72e668ea4cd52afe5f2cf8e44367c55a82bfd91a5a34f",
+    "Damage Propagation Modeling.pdf": "e7aaef80c177333f400a4c1099fe76e67d244569b9397c937ec4cd3ed5b44a27",
     "RUL_FD001.txt": "a19c8ec94931949d0485bdc35118206e9c81c4547b422efb9cf86f4ceddbceca",
     "RUL_FD002.txt": "c851dd96a6ea6998d3c4a8f834d3c8013aa90e93a6ed950dc826ad0655b2906b",
     "RUL_FD003.txt": "df1e0566306b174a2de41c67a3e7a51877889598b78643fc3e5685259091b7cb",
@@ -22,9 +18,10 @@
     "train_FD004.txt": "27ef6160b6a1dcb2613a88de9c239f763b223f02cdc41dc5cdedc5dc189b6218"
   },
   "quirks": [
-    "readme lists 26 sensors; files contain 21 sensors (26 columns total)",
-    "readme FD004 train/test counts swapped: actual 249 train, 248 test units",
-    "rows have trailing whitespace; parse with sep=r'\\s+'"
+    "readme lists sensors up to 26; files contain 21 sensors (26 columns total)",
+    "readme FD004 train/test unit counts are swapped (actual 249 train / 248 test)",
+    "rows end with trailing whitespace; parse with sep=r'\\s+'",
+    "readme.txt contains cp1252 bytes"
   ],
   "profiles": {
     "FD001": {
@@ -32,20 +29,31 @@
       "test_rows": 13096,
       "train_units": 100,
       "test_units": 100,
+      "readme_claimed_units": {
+        "train": 100,
+        "test": 100
+      },
+      "rul_rows": 100,
+      "missing_values": 0,
+      "cycles_contiguous_from_1": true,
       "train_life": {
-        "min": 128,
+        "min": 128.0,
         "median": 199.0,
-        "max": 362
+        "max": 362.0
       },
       "test_length": {
-        "min": 31,
+        "min": 31.0,
         "median": 133.5,
-        "max": 303
+        "max": 303.0
       },
       "true_test_rul": {
-        "min": 7,
+        "min": 7.0,
         "median": 86.0,
-        "max": 145
+        "max": 145.0
+      },
+      "n_regimes": 1,
+      "regime_sizes": {
+        "0": 20631
       },
       "constant_sensors": [
         "T2",
@@ -55,140 +63,185 @@
         "Nf_dmd",
         "PCNfR_dmd"
       ],
-      "model_inputs": [
-        "T24",
-        "T30",
-        "T50",
-        "P30",
-        "Nf",
-        "Nc",
-        "Ps30",
-        "phi",
-        "NRf",
-        "NRc",
-        "BPR",
-        "htBleed",
-        "W31",
-        "W32"
-      ],
-      "sensor_ranges": {
-        "T2": {
-          "min": 518.67,
-          "max": 518.67
-        },
-        "T24": {
-          "min": 641.21,
-          "max": 644.53
-        },
-        "T30": {
-          "min": 1571.04,
-          "max": 1616.91
-        },
-        "T50": {
-          "min": 1382.25,
-          "max": 1441.49
-        },
-        "P2": {
-          "min": 14.62,
-          "max": 14.62
-        },
-        "P15": {
-          "min": 21.6,
-          "max": 21.61
-        },
-        "P30": {
-          "min": 549.85,
-          "max": 556.06
-        },
-        "Nf": {
-          "min": 2387.9,
-          "max": 2388.56
-        },
-        "Nc": {
-          "min": 9021.73,
-          "max": 9244.59
-        },
-        "epr": {
-          "min": 1.3,
-          "max": 1.3
-        },
-        "Ps30": {
-          "min": 46.85,
-          "max": 48.53
-        },
-        "phi": {
-          "min": 518.69,
-          "max": 523.38
-        },
-        "NRf": {
-          "min": 2387.88,
-          "max": 2388.56
-        },
-        "NRc": {
-          "min": 8099.94,
-          "max": 8293.72
-        },
-        "BPR": {
-          "min": 8.3249,
-          "max": 8.5848
-        },
-        "farB": {
-          "min": 0.03,
-          "max": 0.03
-        },
-        "htBleed": {
-          "min": 388.0,
-          "max": 400.0
-        },
-        "Nf_dmd": {
-          "min": 2388.0,
-          "max": 2388.0
-        },
-        "PCNfR_dmd": {
-          "min": 100.0,
-          "max": 100.0
-        },
-        "W31": {
-          "min": 38.14,
-          "max": 39.43
-        },
-        "W32": {
-          "min": 22.8942,
-          "max": 23.6184
-        }
+      "low_cardinality_sensors": {
+        "P15": 2
       },
       "corr_with_capped_rul": {
-        "T2": null,
-        "T24": -0.68,
-        "T30": -0.66,
-        "T50": -0.76,
-        "P2": null,
-        "P15": -0.11,
-        "P30": 0.73,
-        "Nf": -0.62,
-        "Nc": -0.46,
-        "epr": null,
-        "Ps30": -0.78,
-        "phi": 0.75,
-        "NRf": -0.62,
+        "T2": -0.0,
+        "T24": -0.678,
+        "T30": -0.655,
+        "T50": -0.757,
+        "P2": 0.0,
+        "P15": -0.108,
+        "P30": 0.733,
+        "Nf": -0.625,
+        "Nc": -0.462,
+        "epr": 0.0,
+        "Ps30": -0.775,
+        "phi": 0.749,
+        "NRf": -0.624,
         "NRc": -0.37,
-        "BPR": -0.72,
-        "farB": null,
-        "htBleed": -0.68,
+        "BPR": -0.721,
+        "farB": -0.0,
+        "htBleed": -0.681,
         "Nf_dmd": null,
         "PCNfR_dmd": null,
-        "W31": 0.7,
-        "W32": 0.71
+        "W31": 0.705,
+        "W32": 0.707
       },
-      "cv_rmse": {
-        "ridge": 17.166037551713753,
-        "lightgbm": 10.516532469623296
+      "test_values_outside_train_range": {
+        "T24": 2,
+        "T30": 3,
+        "Nf": 1,
+        "Ps30": 2,
+        "phi": 3,
+        "W32": 2
       },
-      "test_metrics": {
-        "LightGBM RMSE": 12.612721144329539,
-        "Ridge RMSE": 17.208643608856494,
-        "NASA score": 206.51677040155985,
-        "P10\u2013P90 coverage": 0.69
+      "ranges": {
+        "setting_1": {
+          "soft_min": -0.0087,
+          "soft_max": 0.0087,
+          "hard_min": -0.01963656724507573,
+          "hard_max": 0.01963656724507573
+        },
+        "setting_2": {
+          "soft_min": -0.0006,
+          "soft_max": 0.0006,
+          "hard_min": -0.002065310622830725,
+          "hard_max": 0.002065310622830725
+        },
+        "setting_3": {
+          "soft_min": 100.0,
+          "soft_max": 100.0,
+          "hard_min": 99.0,
+          "hard_max": 101.0
+        },
+        "T2": {
+          "soft_min": 518.67,
+          "soft_max": 518.67,
+          "hard_min": 513.4833,
+          "hard_max": 523.8566999999999
+        },
+        "T24": {
+          "soft_min": 641.21,
+          "soft_max": 644.53,
+          "hard_min": 638.709733649697,
+          "hard_max": 647.030266350303
+        },
+        "T30": {
+          "soft_min": 1571.04,
+          "soft_max": 1616.91,
+          "hard_min": 1540.384252401546,
+          "hard_max": 1647.565747598454
+        },
+        "T50": {
+          "soft_min": 1382.25,
+          "soft_max": 1441.49,
+          "hard_min": 1337.2469760972813,
+          "hard_max": 1486.4930239027187
+        },
+        "P2": {
+          "soft_min": 14.62,
+          "soft_max": 14.62,
+          "hard_min": 14.473799999999999,
+          "hard_max": 14.7662
+        },
+        "P15": {
+          "soft_min": 21.6,
+          "soft_max": 21.61,
+          "hard_min": 21.593055075436467,
+          "hard_max": 21.616944924563533
+        },
+        "P30": {
+          "soft_min": 549.85,
+          "soft_max": 556.06,
+          "hard_min": 545.424538711683,
+          "hard_max": 560.485461288317
+        },
+        "Nf": {
+          "soft_min": 2387.9,
+          "soft_max": 2388.56,
+          "hard_min": 2387.5450726055456,
+          "hard_max": 2388.9149273944545
+        },
+        "Nc": {
+          "soft_min": 9021.73,
+          "soft_max": 9244.59,
+          "hard_min": 8911.315602374669,
+          "hard_max": 9355.004397625331
+        },
+        "epr": {
+          "soft_min": 1.3,
+          "soft_max": 1.3,
+          "hard_min": 1.2870000000000001,
+          "hard_max": 1.313
+        },
+        "Ps30": {
+          "soft_min": 46.85,
+          "soft_max": 48.53,
+          "hard_min": 45.514563006801566,
+          "hard_max": 49.865436993198436
+        },
+        "phi": {
+          "soft_min": 518.69,
+          "soft_max": 523.38,
+          "hard_min": 515.0022330389515,
+          "hard_max": 527.0677669610485
+        },
+        "NRf": {
+          "soft_min": 2387.88,
+          "soft_max": 2388.56,
+          "hard_min": 2387.5204054215073,
+          "hard_max": 2388.9195945784927
+        },
+        "NRc": {
+          "soft_min": 8099.94,
+          "soft_max": 8293.72,
+          "hard_min": 8004.559120120234,
+          "hard_max": 8389.100879879765
+        },
+        "BPR": {
+          "soft_min": 8.3249,
+          "soft_max": 8.5848,
+          "hard_min": 8.137374810240166,
+          "hard_max": 8.772325189759833
+        },
+        "farB": {
+          "soft_min": 0.03,
+          "soft_max": 0.03,
+          "hard_min": 0.028999999999999998,
+          "hard_max": 0.031
+        },
+        "htBleed": {
+          "soft_min": 388.0,
+          "soft_max": 400.0,
+          "hard_min": 380.2561848769288,
+          "hard_max": 407.7438151230712
+        },
+        "Nf_dmd": {
+          "soft_min": 2388.0,
+          "soft_max": 2388.0,
+          "hard_min": 2364.12,
+          "hard_max": 2411.88
+        },
+        "PCNfR_dmd": {
+          "soft_min": 100.0,
+          "soft_max": 100.0,
+          "hard_min": 99.0,
+          "hard_max": 101.0
+        },
+        "W31": {
+          "soft_min": 38.14,
+          "soft_max": 39.43,
+          "hard_min": 37.23626786063169,
+          "hard_max": 40.33373213936831
+        },
+        "W32": {
+          "soft_min": 22.8942,
+          "soft_max": 23.6184,
+          "hard_min": 22.35294562627544,
+          "hard_max": 24.159654373724564
+        }
       }
     },
     "FD002": {
@@ -196,156 +249,221 @@
       "test_rows": 33991,
       "train_units": 260,
       "test_units": 259,
+      "readme_claimed_units": {
+        "train": 260,
+        "test": 259
+      },
+      "rul_rows": 259,
+      "missing_values": 0,
+      "cycles_contiguous_from_1": true,
       "train_life": {
-        "min": 128,
+        "min": 128.0,
         "median": 199.0,
-        "max": 378
+        "max": 378.0
       },
       "test_length": {
-        "min": 21,
+        "min": 21.0,
         "median": 132.0,
-        "max": 367
+        "max": 367.0
       },
       "true_test_rul": {
-        "min": 6,
+        "min": 6.0,
         "median": 80.0,
-        "max": 194
+        "max": 194.0
+      },
+      "n_regimes": 6,
+      "regime_sizes": {
+        "0": 8044,
+        "1": 8096,
+        "2": 8122,
+        "3": 8002,
+        "4": 8037,
+        "5": 13458
       },
       "constant_sensors": [],
-      "model_inputs": [
-        "T24",
-        "T30",
-        "T50",
-        "P30",
-        "Nf",
-        "Nc",
-        "Ps30",
-        "phi",
-        "NRf",
-        "NRc",
-        "BPR",
-        "htBleed",
-        "W31",
-        "W32"
-      ],
-      "sensor_ranges": {
-        "T2": {
-          "min": 445.0,
-          "max": 518.67
-        },
-        "T24": {
-          "min": 535.53,
-          "max": 644.52
-        },
-        "T30": {
-          "min": 1243.73,
-          "max": 1612.88
-        },
-        "T50": {
-          "min": 1023.77,
-          "max": 1439.23
-        },
-        "P2": {
-          "min": 3.91,
-          "max": 14.62
-        },
-        "P15": {
-          "min": 5.71,
-          "max": 21.61
-        },
-        "P30": {
-          "min": 136.8,
-          "max": 555.82
-        },
-        "Nf": {
-          "min": 1914.77,
-          "max": 2388.39
-        },
-        "Nc": {
-          "min": 7985.56,
-          "max": 9215.66
-        },
-        "epr": {
-          "min": 0.93,
-          "max": 1.3
-        },
-        "Ps30": {
-          "min": 36.23,
-          "max": 48.51
-        },
-        "phi": {
-          "min": 129.12,
-          "max": 523.37
-        },
-        "NRf": {
-          "min": 2027.61,
-          "max": 2390.48
-        },
-        "NRc": {
-          "min": 7848.36,
-          "max": 8268.5
-        },
-        "BPR": {
-          "min": 8.3357,
-          "max": 11.0669
-        },
-        "farB": {
-          "min": 0.02,
-          "max": 0.03
-        },
-        "htBleed": {
-          "min": 303.0,
-          "max": 399.0
-        },
-        "Nf_dmd": {
-          "min": 1915.0,
-          "max": 2388.0
-        },
-        "PCNfR_dmd": {
-          "min": 84.93,
-          "max": 100.0
-        },
-        "W31": {
-          "min": 10.18,
-          "max": 39.34
-        },
-        "W32": {
-          "min": 6.0105,
-          "max": 23.5901
-        }
+      "low_cardinality_sensors": {
+        "T2": 6,
+        "P2": 6,
+        "epr": 9,
+        "farB": 2,
+        "Nf_dmd": 6,
+        "PCNfR_dmd": 2
       },
       "corr_with_capped_rul": {
-        "T2": null,
+        "T2": 0.002,
         "T24": -0.63,
-        "T30": -0.62,
-        "T50": -0.74,
-        "P2": null,
-        "P15": -0.36,
+        "T30": -0.618,
+        "T50": -0.738,
+        "P2": 0.0,
+        "P15": -0.363,
         "P30": 0.51,
-        "Nf": -0.48,
-        "Nc": -0.42,
-        "epr": 0.04,
-        "Ps30": -0.77,
-        "phi": 0.53,
-        "NRf": -0.48,
-        "NRc": -0.32,
-        "BPR": -0.72,
-        "farB": -0.67,
-        "htBleed": -0.65,
+        "Nf": -0.475,
+        "Nc": -0.422,
+        "epr": 0.036,
+        "Ps30": -0.771,
+        "phi": 0.535,
+        "NRf": -0.476,
+        "NRc": -0.322,
+        "BPR": -0.724,
+        "farB": -0.194,
+        "htBleed": -0.649,
         "Nf_dmd": null,
         "PCNfR_dmd": null,
-        "W31": 0.48,
-        "W32": 0.48
+        "W31": 0.484,
+        "W32": 0.479
       },
-      "cv_rmse": {
-        "ridge": 17.530346404120124,
-        "lightgbm": 12.181520980802759
+      "test_values_outside_train_range": {
+        "T24": 1,
+        "P30": 1,
+        "Ps30": 1,
+        "BPR": 1,
+        "W32": 1
       },
-      "test_metrics": {
-        "LightGBM RMSE": 24.094747466008126,
-        "Ridge RMSE": 27.904505899028834,
-        "NASA score": 6616.354143579989,
-        "P10\u2013P90 coverage": 0.6563706563706564
+      "ranges": {
+        "setting_1": {
+          "soft_min": 0.0,
+          "soft_max": 42.008,
+          "hard_min": -73.73688042506444,
+          "hard_max": 115.74488042506445
+        },
+        "setting_2": {
+          "soft_min": 0.0,
+          "soft_max": 0.842,
+          "hard_min": -1.550079918087755,
+          "hard_max": 2.392079918087755
+        },
+        "setting_3": {
+          "soft_min": 60.0,
+          "soft_max": 100.0,
+          "hard_min": -11.188673130007686,
+          "hard_max": 171.1886731300077
+        },
+        "T2": {
+          "soft_min": 445.0,
+          "soft_max": 518.67,
+          "hard_min": 371.33000000000004,
+          "hard_max": 592.3399999999999
+        },
+        "T24": {
+          "soft_min": 535.53,
+          "soft_max": 644.52,
+          "hard_min": 533.050475408282,
+          "hard_max": 646.999524591718
+        },
+        "T30": {
+          "soft_min": 1243.73,
+          "soft_max": 1612.88,
+          "hard_min": 1213.61823905645,
+          "hard_max": 1642.9917609435502
+        },
+        "T50": {
+          "soft_min": 1023.77,
+          "soft_max": 1439.23,
+          "hard_min": 979.0862120262603,
+          "hard_max": 1483.9137879737395
+        },
+        "P2": {
+          "soft_min": 3.91,
+          "soft_max": 14.62,
+          "hard_min": -6.799999999999999,
+          "hard_max": 25.33
+        },
+        "P15": {
+          "soft_min": 5.71,
+          "soft_max": 21.61,
+          "hard_min": 5.6853541106535195,
+          "hard_max": 21.63464588934648
+        },
+        "P30": {
+          "soft_min": 136.8,
+          "soft_max": 555.82,
+          "hard_min": 132.4599708766394,
+          "hard_max": 560.1600291233607
+        },
+        "Nf": {
+          "soft_min": 1914.77,
+          "soft_max": 2388.39,
+          "hard_min": 1913.2713581116775,
+          "hard_max": 2389.8886418883226
+        },
+        "Nc": {
+          "soft_min": 7985.56,
+          "soft_max": 9215.66,
+          "hard_min": 7889.497063119236,
+          "hard_max": 9311.722936880764
+        },
+        "epr": {
+          "soft_min": 0.93,
+          "soft_max": 1.3,
+          "hard_min": 0.909056866280624,
+          "hard_max": 1.320943133719376
+        },
+        "Ps30": {
+          "soft_min": 36.23,
+          "soft_max": 48.51,
+          "hard_min": 34.91031184884858,
+          "hard_max": 49.829688151151416
+        },
+        "phi": {
+          "soft_min": 129.12,
+          "soft_max": 523.37,
+          "hard_min": 125.44653023996266,
+          "hard_max": 527.0434697600374
+        },
+        "NRf": {
+          "soft_min": 2027.61,
+          "soft_max": 2390.48,
+          "hard_min": 2025.9934292587718,
+          "hard_max": 2392.096570741228
+        },
+        "NRc": {
+          "soft_min": 7848.36,
+          "soft_max": 8268.5,
+          "hard_min": 7765.651762308775,
+          "hard_max": 8351.208237691224
+        },
+        "BPR": {
+          "soft_min": 8.3357,
+          "soft_max": 11.0669,
+          "hard_min": 8.119646388998222,
+          "hard_max": 11.282953611001778
+        },
+        "farB": {
+          "soft_min": 0.02,
+          "soft_max": 0.03,
+          "hard_min": -0.0005157208234574211,
+          "hard_max": 0.05051572082345742
+        },
+        "htBleed": {
+          "soft_min": 303.0,
+          "soft_max": 399.0,
+          "hard_min": 295.3931739229859,
+          "hard_max": 406.6068260770141
+        },
+        "Nf_dmd": {
+          "soft_min": 1915.0,
+          "soft_max": 2388.0,
+          "hard_min": 1442.0,
+          "hard_max": 2861.0
+        },
+        "PCNfR_dmd": {
+          "soft_min": 84.93,
+          "soft_max": 100.0,
+          "hard_min": 69.86000000000001,
+          "hard_max": 115.07
+        },
+        "W31": {
+          "soft_min": 10.18,
+          "soft_max": 39.34,
+          "hard_min": 9.292347830762692,
+          "hard_max": 40.22765216923731
+        },
+        "W32": {
+          "soft_min": 6.0105,
+          "soft_max": 23.5901,
+          "hard_min": 5.482872622390311,
+          "hard_max": 24.11772737760969
+        }
       }
     },
     "FD003": {
@@ -353,20 +471,31 @@
       "test_rows": 16596,
       "train_units": 100,
       "test_units": 100,
+      "readme_claimed_units": {
+        "train": 100,
+        "test": 100
+      },
+      "rul_rows": 100,
+      "missing_values": 0,
+      "cycles_contiguous_from_1": true,
       "train_life": {
-        "min": 145,
+        "min": 145.0,
         "median": 220.5,
-        "max": 525
+        "max": 525.0
       },
       "test_length": {
-        "min": 38,
+        "min": 38.0,
         "median": 148.0,
-        "max": 475
+        "max": 475.0
       },
       "true_test_rul": {
-        "min": 6,
+        "min": 6.0,
         "median": 77.5,
-        "max": 145
+        "max": 145.0
+      },
+      "n_regimes": 1,
+      "regime_sizes": {
+        "0": 24720
       },
       "constant_sensors": [
         "T2",
@@ -375,141 +504,183 @@
         "Nf_dmd",
         "PCNfR_dmd"
       ],
-      "model_inputs": [
-        "T24",
-        "T30",
-        "T50",
-        "P30",
-        "Nf",
-        "Nc",
-        "Ps30",
-        "phi",
-        "NRf",
-        "NRc",
-        "BPR",
-        "htBleed",
-        "W31",
-        "W32",
-        "epr"
-      ],
-      "sensor_ranges": {
-        "T2": {
-          "min": 518.67,
-          "max": 518.67
-        },
-        "T24": {
-          "min": 640.84,
-          "max": 645.11
-        },
-        "T30": {
-          "min": 1564.3,
-          "max": 1615.39
-        },
-        "T50": {
-          "min": 1377.06,
-          "max": 1441.16
-        },
-        "P2": {
-          "min": 14.62,
-          "max": 14.62
-        },
-        "P15": {
-          "min": 21.45,
-          "max": 21.61
-        },
-        "P30": {
-          "min": 549.61,
-          "max": 570.49
-        },
-        "Nf": {
-          "min": 2386.9,
-          "max": 2388.6
-        },
-        "Nc": {
-          "min": 9017.98,
-          "max": 9234.35
-        },
-        "epr": {
-          "min": 1.29,
-          "max": 1.32
-        },
-        "Ps30": {
-          "min": 46.69,
-          "max": 48.44
-        },
-        "phi": {
-          "min": 517.77,
-          "max": 537.4
-        },
-        "NRf": {
-          "min": 2386.93,
-          "max": 2388.61
-        },
-        "NRc": {
-          "min": 8099.68,
-          "max": 8290.55
-        },
-        "BPR": {
-          "min": 8.1563,
-          "max": 8.5705
-        },
-        "farB": {
-          "min": 0.03,
-          "max": 0.03
-        },
-        "htBleed": {
-          "min": 388.0,
-          "max": 399.0
-        },
-        "Nf_dmd": {
-          "min": 2388.0,
-          "max": 2388.0
-        },
-        "PCNfR_dmd": {
-          "min": 100.0,
-          "max": 100.0
-        },
-        "W31": {
-          "min": 38.17,
-          "max": 39.85
-        },
-        "W32": {
-          "min": 22.8726,
-          "max": 23.9505
-        }
+      "low_cardinality_sensors": {
+        "epr": 4
       },
       "corr_with_capped_rul": {
-        "T2": null,
-        "T24": -0.68,
-        "T30": -0.7,
+        "T2": 0.0,
+        "T24": -0.682,
+        "T30": -0.696,
         "T50": -0.77,
-        "P2": null,
-        "P15": -0.1,
-        "P30": -0.36,
-        "Nf": -0.63,
-        "Nc": -0.64,
-        "epr": -0.49,
-        "Ps30": -0.8,
-        "phi": -0.37,
-        "NRf": -0.63,
-        "NRc": -0.56,
-        "BPR": -0.0,
-        "farB": null,
-        "htBleed": -0.73,
+        "P2": -0.0,
+        "P15": -0.096,
+        "P30": -0.357,
+        "Nf": -0.634,
+        "Nc": -0.644,
+        "epr": -0.495,
+        "Ps30": -0.805,
+        "phi": -0.375,
+        "NRf": -0.635,
+        "NRc": -0.564,
+        "BPR": -0.002,
+        "farB": -0.0,
+        "htBleed": -0.726,
         "Nf_dmd": null,
         "PCNfR_dmd": null,
         "W31": 0.05,
-        "W32": 0.04
+        "W32": 0.042
       },
-      "cv_rmse": {
-        "ridge": 16.321092796740558,
-        "lightgbm": 10.39870220670393
+      "test_values_outside_train_range": {
+        "P30": 1,
+        "Ps30": 2,
+        "phi": 1,
+        "htBleed": 1
       },
-      "test_metrics": {
-        "LightGBM RMSE": 12.63030792081548,
-        "Ridge RMSE": 16.794999275012884,
-        "NASA score": 275.520642095918,
-        "P10\u2013P90 coverage": 0.56
+      "ranges": {
+        "setting_1": {
+          "soft_min": -0.0086,
+          "soft_max": 0.0086,
+          "hard_min": -0.019567722922632192,
+          "hard_max": 0.019567722922632192
+        },
+        "setting_2": {
+          "soft_min": -0.0006,
+          "soft_max": 0.0007,
+          "hard_min": -0.0020702144352952225,
+          "hard_max": 0.0021702144352952228
+        },
+        "setting_3": {
+          "soft_min": 100.0,
+          "soft_max": 100.0,
+          "hard_min": 99.0,
+          "hard_max": 101.0
+        },
+        "T2": {
+          "soft_min": 518.67,
+          "soft_max": 518.67,
+          "hard_min": 513.4833,
+          "hard_max": 523.8566999999999
+        },
+        "T24": {
+          "soft_min": 640.84,
+          "soft_max": 645.11,
+          "hard_min": 638.2248443099584,
+          "hard_max": 647.7251556900417
+        },
+        "T30": {
+          "soft_min": 1564.3,
+          "soft_max": 1615.39,
+          "hard_min": 1530.247909726153,
+          "hard_max": 1649.442090273847
+        },
+        "T50": {
+          "soft_min": 1377.06,
+          "soft_max": 1441.16,
+          "hard_min": 1328.1941083630625,
+          "hard_max": 1490.0258916369376
+        },
+        "P2": {
+          "soft_min": 14.62,
+          "soft_max": 14.62,
+          "hard_min": 14.473799999999999,
+          "hard_max": 14.7662
+        },
+        "P15": {
+          "soft_min": 21.45,
+          "soft_max": 21.61,
+          "hard_min": 21.359419999757446,
+          "hard_max": 21.700580000242553
+        },
+        "P30": {
+          "soft_min": 549.61,
+          "soft_max": 570.49,
+          "hard_min": 532.4232856286258,
+          "hard_max": 587.6767143713743
+        },
+        "Nf": {
+          "soft_min": 2386.9,
+          "soft_max": 2388.6,
+          "hard_min": 2386.10857535824,
+          "hard_max": 2389.39142464176
+        },
+        "Nc": {
+          "soft_min": 9017.98,
+          "soft_max": 9234.35,
+          "hard_min": 8918.078528454433,
+          "hard_max": 9334.251471545567
+        },
+        "epr": {
+          "soft_min": 1.29,
+          "soft_max": 1.32,
+          "hard_min": 1.2725757547991783,
+          "hard_max": 1.3374242452008218
+        },
+        "Ps30": {
+          "soft_min": 46.69,
+          "soft_max": 48.44,
+          "hard_min": 45.18962919288372,
+          "hard_max": 49.940370807116274
+        },
+        "phi": {
+          "soft_min": 517.77,
+          "soft_max": 537.4,
+          "hard_min": 501.49343011278535,
+          "hard_max": 553.6765698872147
+        },
+        "NRf": {
+          "soft_min": 2386.93,
+          "soft_max": 2388.61,
+          "hard_min": 2386.1393966505548,
+          "hard_max": 2389.400603349445
+        },
+        "NRc": {
+          "soft_min": 8099.68,
+          "soft_max": 8290.55,
+          "hard_min": 8017.159411586546,
+          "hard_max": 8373.070588413453
+        },
+        "BPR": {
+          "soft_min": 8.1563,
+          "soft_max": 8.5705,
+          "hard_min": 7.853741931607568,
+          "hard_max": 8.87305806839243
+        },
+        "farB": {
+          "soft_min": 0.03,
+          "soft_max": 0.03,
+          "hard_min": 0.028999999999999998,
+          "hard_max": 0.031
+        },
+        "htBleed": {
+          "soft_min": 388.0,
+          "soft_max": 399.0,
+          "hard_min": 379.1927074645173,
+          "hard_max": 407.8072925354827
+        },
+        "Nf_dmd": {
+          "soft_min": 2388.0,
+          "soft_max": 2388.0,
+          "hard_min": 2364.12,
+          "hard_max": 2411.88
+        },
+        "PCNfR_dmd": {
+          "soft_min": 100.0,
+          "soft_max": 100.0,
+          "hard_min": 99.0,
+          "hard_max": 101.0
+        },
+        "W31": {
+          "soft_min": 38.17,
+          "soft_max": 39.85,
+          "hard_min": 36.92567652698366,
+          "hard_max": 41.094323473016345
+        },
+        "W32": {
+          "soft_min": 22.8726,
+          "soft_max": 23.9505,
+          "hard_min": 22.126431059922417,
+          "hard_max": 24.696668940077583
+        }
       }
     },
     "FD004": {
@@ -517,157 +688,221 @@
       "test_rows": 41214,
       "train_units": 249,
       "test_units": 248,
+      "readme_claimed_units": {
+        "train": 248,
+        "test": 249
+      },
+      "rul_rows": 248,
+      "missing_values": 0,
+      "cycles_contiguous_from_1": true,
       "train_life": {
-        "min": 128,
+        "min": 128.0,
         "median": 234.0,
-        "max": 543
+        "max": 543.0
       },
       "test_length": {
-        "min": 19,
+        "min": 19.0,
         "median": 153.5,
-        "max": 486
+        "max": 486.0
       },
       "true_test_rul": {
-        "min": 6,
+        "min": 6.0,
         "median": 88.0,
-        "max": 195
+        "max": 195.0
+      },
+      "n_regimes": 6,
+      "regime_sizes": {
+        "0": 9238,
+        "1": 9224,
+        "2": 9091,
+        "3": 9139,
+        "4": 9162,
+        "5": 15395
       },
       "constant_sensors": [],
-      "model_inputs": [
-        "T24",
-        "T30",
-        "T50",
-        "P30",
-        "Nf",
-        "Nc",
-        "Ps30",
-        "phi",
-        "NRf",
-        "NRc",
-        "BPR",
-        "htBleed",
-        "W31",
-        "W32",
-        "epr"
-      ],
-      "sensor_ranges": {
-        "T2": {
-          "min": 445.0,
-          "max": 518.67
-        },
-        "T24": {
-          "min": 535.48,
-          "max": 644.42
-        },
-        "T30": {
-          "min": 1242.67,
-          "max": 1613.0
-        },
-        "T50": {
-          "min": 1024.42,
-          "max": 1440.77
-        },
-        "P2": {
-          "min": 3.91,
-          "max": 14.62
-        },
-        "P15": {
-          "min": 5.67,
-          "max": 21.61
-        },
-        "P30": {
-          "min": 136.17,
-          "max": 570.81
-        },
-        "Nf": {
-          "min": 1914.72,
-          "max": 2388.64
-        },
-        "Nc": {
-          "min": 7984.51,
-          "max": 9196.81
-        },
-        "epr": {
-          "min": 0.93,
-          "max": 1.32
-        },
-        "Ps30": {
-          "min": 36.04,
-          "max": 48.36
-        },
-        "phi": {
-          "min": 128.31,
-          "max": 537.49
-        },
-        "NRf": {
-          "min": 2027.57,
-          "max": 2390.49
-        },
-        "NRc": {
-          "min": 7845.78,
-          "max": 8261.65
-        },
-        "BPR": {
-          "min": 8.1757,
-          "max": 11.0663
-        },
-        "farB": {
-          "min": 0.02,
-          "max": 0.03
-        },
-        "htBleed": {
-          "min": 302.0,
-          "max": 399.0
-        },
-        "Nf_dmd": {
-          "min": 1915.0,
-          "max": 2388.0
-        },
-        "PCNfR_dmd": {
-          "min": 84.93,
-          "max": 100.0
-        },
-        "W31": {
-          "min": 10.16,
-          "max": 39.89
-        },
-        "W32": {
-          "min": 6.0843,
-          "max": 23.8852
-        }
+      "low_cardinality_sensors": {
+        "T2": 6,
+        "P2": 6,
+        "farB": 2,
+        "Nf_dmd": 6,
+        "PCNfR_dmd": 2
       },
       "corr_with_capped_rul": {
-        "T2": null,
+        "T2": -0.003,
         "T24": -0.58,
-        "T30": -0.65,
+        "T30": -0.648,
         "T50": -0.72,
-        "P2": null,
-        "P15": -0.12,
-        "P30": -0.34,
-        "Nf": -0.57,
-        "Nc": -0.62,
-        "epr": -0.36,
-        "Ps30": -0.76,
+        "P2": -0.003,
+        "P15": -0.123,
+        "P30": -0.338,
+        "Nf": -0.566,
+        "Nc": -0.622,
+        "epr": -0.361,
+        "Ps30": -0.761,
         "phi": -0.36,
-        "NRf": -0.57,
-        "NRc": -0.55,
-        "BPR": 0.02,
-        "farB": -0.34,
+        "NRf": -0.567,
+        "NRc": -0.547,
+        "BPR": 0.021,
+        "farB": -0.113,
         "htBleed": -0.67,
         "Nf_dmd": null,
-        "PCNfR_dmd": null,
-        "W31": 0.02,
-        "W32": 0.03
+        "PCNfR_dmd": 0.0,
+        "W31": 0.025,
+        "W32": 0.025
       },
-      "cv_rmse": {
-        "ridge": 18.002412892262445,
-        "lightgbm": 13.655737639483174
+      "test_values_outside_train_range": {
+        "T24": 1,
+        "T30": 1,
+        "P15": 9,
+        "P30": 1,
+        "Ps30": 1,
+        "phi": 1
       },
-      "test_metrics": {
-        "LightGBM RMSE": 24.940954959593522,
-        "Ridge RMSE": 29.2842992365438,
-        "NASA score": 4050.0702395665685,
-        "P10\u2013P90 coverage": 0.5725806451612904
+      "ranges": {
+        "setting_1": {
+          "soft_min": 0.0,
+          "soft_max": 42.008,
+          "hard_min": -73.90360826136258,
+          "hard_max": 115.91160826136257
+        },
+        "setting_2": {
+          "soft_min": 0.0,
+          "soft_max": 0.842,
+          "hard_min": -1.5535172202681349,
+          "hard_max": 2.3955172202681347
+        },
+        "setting_3": {
+          "soft_min": 60.0,
+          "soft_max": 100.0,
+          "hard_min": -11.25976959400522,
+          "hard_max": 171.2597695940052
+        },
+        "T2": {
+          "soft_min": 445.0,
+          "soft_max": 518.67,
+          "hard_min": 371.33000000000004,
+          "hard_max": 592.3399999999999
+        },
+        "T24": {
+          "soft_min": 535.48,
+          "soft_max": 644.42,
+          "hard_min": 532.8942111020058,
+          "hard_max": 647.0057888979942
+        },
+        "T30": {
+          "soft_min": 1242.67,
+          "soft_max": 1613.0,
+          "hard_min": 1209.1348427464734,
+          "hard_max": 1646.5351572535267
+        },
+        "T50": {
+          "soft_min": 1024.42,
+          "soft_max": 1440.77,
+          "hard_min": 975.7605012876163,
+          "hard_max": 1489.4294987123837
+        },
+        "P2": {
+          "soft_min": 3.91,
+          "soft_max": 14.62,
+          "hard_min": -6.799999999999999,
+          "hard_max": 25.33
+        },
+        "P15": {
+          "soft_min": 5.67,
+          "soft_max": 21.61,
+          "hard_min": 5.554372100692048,
+          "hard_max": 21.725627899307952
+        },
+        "P30": {
+          "soft_min": 136.17,
+          "soft_max": 570.81,
+          "hard_min": 118.82920888770923,
+          "hard_max": 588.1507911122907
+        },
+        "Nf": {
+          "soft_min": 1914.72,
+          "soft_max": 2388.64,
+          "hard_min": 1913.4401123848543,
+          "hard_max": 2389.9198876151454
+        },
+        "Nc": {
+          "soft_min": 7984.51,
+          "soft_max": 9196.81,
+          "hard_min": 7888.154707421866,
+          "hard_max": 9293.165292578135
+        },
+        "epr": {
+          "soft_min": 0.93,
+          "soft_max": 1.32,
+          "hard_min": 0.894988253269841,
+          "hard_max": 1.355011746730159
+        },
+        "Ps30": {
+          "soft_min": 36.04,
+          "soft_max": 48.36,
+          "hard_min": 34.5616363090174,
+          "hard_max": 49.8383636909826
+        },
+        "phi": {
+          "soft_min": 128.31,
+          "soft_max": 537.49,
+          "hard_min": 111.91142045331733,
+          "hard_max": 553.8885795466826
+        },
+        "NRf": {
+          "soft_min": 2027.57,
+          "soft_max": 2390.49,
+          "hard_min": 2026.1946915892731,
+          "hard_max": 2391.865308410727
+        },
+        "NRc": {
+          "soft_min": 7845.78,
+          "soft_max": 8261.65,
+          "hard_min": 7761.801115444625,
+          "hard_max": 8345.628884555374
+        },
+        "BPR": {
+          "soft_min": 8.1757,
+          "soft_max": 11.0663,
+          "hard_min": 7.811416935342495,
+          "hard_max": 11.430583064657506
+        },
+        "farB": {
+          "soft_min": 0.02,
+          "soft_max": 0.03,
+          "hard_min": 0.0016257450074908288,
+          "hard_max": 0.04837425499250917
+        },
+        "htBleed": {
+          "soft_min": 302.0,
+          "soft_max": 399.0,
+          "hard_min": 293.3749703285034,
+          "hard_max": 407.6250296714966
+        },
+        "Nf_dmd": {
+          "soft_min": 1915.0,
+          "soft_max": 2388.0,
+          "hard_min": 1442.0,
+          "hard_max": 2861.0
+        },
+        "PCNfR_dmd": {
+          "soft_min": 84.93,
+          "soft_max": 100.0,
+          "hard_min": 69.86000000000001,
+          "hard_max": 115.07
+        },
+        "W31": {
+          "soft_min": 10.16,
+          "soft_max": 39.89,
+          "hard_min": 8.890774056525448,
+          "hard_max": 41.15922594347455
+        },
+        "W32": {
+          "soft_min": 6.0843,
+          "soft_max": 23.8852,
+          "hard_min": 5.32300750248293,
+          "hard_max": 24.64649249751707
+        }
       }
     }
   }

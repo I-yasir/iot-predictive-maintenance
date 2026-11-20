@@ -1,0 +1,116 @@
+"""Data audit (plan step P1.4): regenerates every number in docs/05 §1-3 and the profile configs."""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any
+
+import numpy as np
+import pandas as pd
+import yaml
+
+from pdm_ml.config import DEFAULT_INPUTS, PROFILES, RUL_CAP_DEFAULT, SETTINGS
+from pdm_ml.features.regimes import RegimeNormalizer
+from pdm_ml.io.loader import ProfileData, load_profile, sensor_catalog, sensor_symbols
+from pdm_ml.labels.rul import cap, train_rul
+from pdm_ml.models.bundle import sha256_file
+
+README_CLAIMS = {"FD001": (100, 100), "FD002": (260, 259), "FD003": (100, 100), "FD004": (248, 249)}
+HARD_LIMIT_SIGMA = 5.0
+
+
+def _stats(s: pd.Series) -> dict[str, float]:
+    return {"min": float(s.min()), "median": float(s.median()), "max": float(s.max())}
+
+
+def _contiguous(df: pd.DataFrame) -> bool:
+    g = df.groupby("unit").cycle
+    return bool((g.min() == 1).all() and (g.max() - g.min() + 1 == g.count()).all())
+
+
+def audit_profile(d: ProfileData) -> dict[str, Any]:
+    tr, te = d.train, d.test
+    sensors = sensor_symbols()
+    life = tr.groupby("unit").cycle.max()
+    test_len = te.groupby("unit").cycle.max()
+    norm = RegimeNormalizer(d.profile, tuple(sensors)).fit(tr)
+    z = norm.transform(tr)
+    rul_c = cap(train_rul(tr), RUL_CAP_DEFAULT)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        corr = z[sensors].corrwith(rul_c)
+    regimes = z.regime.value_counts().sort_index()
+    # per-regime std for hard limits (max over regimes, so limits are wide enough everywhere)
+    assert norm.sd_ is not None
+    sd_arr = np.where(np.isnan(norm.sd_), 0.0, norm.sd_)
+    sd_regime = pd.Series(sd_arr.max(axis=0), index=sensors)
+    ranges = {}
+    for s in [*SETTINGS, *sensors]:
+        lo, hi = float(tr[s].min()), float(tr[s].max())
+        pad = HARD_LIMIT_SIGMA * float(sd_regime.get(s, tr[s].std() if s in SETTINGS else 0.0))
+        if pad < max(1e-9, 1e-6 * abs(hi)):
+            pad = max(abs(hi - lo), abs(hi) * 0.01, 1e-3)  # constant channel: allow a small band
+        ranges[s] = {"soft_min": lo, "soft_max": hi, "hard_min": lo - pad, "hard_max": hi + pad}
+    ood_test = {s: int(((te[s] < tr[s].min()) | (te[s] > tr[s].max())).sum()) for s in sensors}
+    return {
+        "train_rows": len(tr),
+        "test_rows": len(te),
+        "train_units": int(tr.unit.nunique()),
+        "test_units": int(te.unit.nunique()),
+        "readme_claimed_units": {"train": README_CLAIMS[d.profile][0], "test": README_CLAIMS[d.profile][1]},
+        "rul_rows": len(d.true_rul),
+        "missing_values": int(tr.isna().sum().sum() + te.isna().sum().sum()),
+        "cycles_contiguous_from_1": _contiguous(tr) and _contiguous(te),
+        "train_life": _stats(life),
+        "test_length": _stats(test_len),
+        "true_test_rul": _stats(d.true_rul),
+        "n_regimes": int(norm.n_regimes),
+        "regime_sizes": {int(k): int(v) for k, v in regimes.items()},
+        "constant_sensors": [s for s in sensors if tr[s].nunique() == 1],
+        "low_cardinality_sensors": {s: int(tr[s].nunique()) for s in sensors if 1 < tr[s].nunique() <= 10},
+        "corr_with_capped_rul": {s: (None if pd.isna(v) else round(float(v), 3)) for s, v in corr.items()},
+        "test_values_outside_train_range": {k: v for k, v in ood_test.items() if v},
+        "ranges": ranges,
+    }
+
+
+def profile_config(profile: str, a: dict[str, Any]) -> dict[str, Any]:
+    cat = sensor_catalog()
+    inputs = list(DEFAULT_INPUTS[profile])
+    return {
+        "profile": profile,
+        "description": f"NASA C-MAPSS {profile} turbofan engine",
+        "time_axis": "cycle",
+        "required_settings": list(SETTINGS),
+        "required_sensors": inputs,
+        "optional_sensors": [s.symbol for s in cat if s.symbol not in inputs],
+        "units": {s.symbol: s.unit for s in cat},
+        "subsystem": {s.symbol: s.subsystem for s in cat},
+        "n_regimes": a["n_regimes"],
+        "ranges": {k: {kk: round(vv, 6) for kk, vv in v.items()} for k, v in a["ranges"].items()},
+        "expected_interval_s": 1.0,
+        "model_bundle": f"ml/artifacts/{profile}/CURRENT",
+    }
+
+
+def run_audit(out_dir: Path, profiles_dir: Path, raw: Path) -> dict[str, Any]:
+    audit: dict[str, Any] = {
+        "generated_by": "ml/pipelines/audit.py",
+        "files": {p.name: sha256_file(p) for p in sorted(raw.iterdir()) if p.is_file()},
+        "quirks": [
+            "readme lists sensors up to 26; files contain 21 sensors (26 columns total)",
+            "readme FD004 train/test unit counts are swapped (actual 249 train / 248 test)",
+            "rows end with trailing whitespace; parse with sep=r'\\s+'",
+            "readme.txt contains cp1252 bytes",
+        ],
+        "profiles": {},
+    }
+    profiles_dir.mkdir(parents=True, exist_ok=True)
+    for p in PROFILES:
+        a = audit_profile(load_profile(p, raw))
+        audit["profiles"][p] = a
+        (profiles_dir / f"{p}.yaml").write_text(
+            "# GENERATED by ml/pipelines/audit.py - do not edit by hand; re-run `make audit`.\n"
+            + yaml.safe_dump(profile_config(p, a), sort_keys=False, allow_unicode=True)
+        )
+    out_dir.mkdir(parents=True, exist_ok=True)
+    return audit

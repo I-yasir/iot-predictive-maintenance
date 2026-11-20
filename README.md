@@ -2,7 +2,15 @@
 
 Predicts the Remaining Useful Life (RUL) of monitored assets from streamed sensor telemetry and shows a live fleet overview with per-component diagnostic reports. Built and tested on the NASA C-MAPSS turbofan dataset (in `data/raw/cmapss/`), with two test modes: dataset replay and an ESP32 streaming synthetic telemetry over Wi-Fi.
 
-**Status:** Phase 1, architecture docs plus an exploratory notebook. No application code yet.
+**Status:** Phase 1 ML pipeline done: data audit, causal features, grouped CV, LightGBM RUL models with conformal intervals, and versioned bundles in `ml/artifacts/`. Results are in `ml/reports/` and `docs/05_ML_and_Data_Spec.md` §7.5.2. Next up is Phase 2 (IoT ingestion contract, replay simulator, ESP32).
+
+```bash
+make venv && source .venv/bin/activate
+make audit      # data audit + profile configs
+make train      # CV model selection + bundles (~6 min on 4 cores)
+make evaluate   # official test evaluation
+make test       # 21 tests
+```
 
 | Start here | What it is |
 |---|---|

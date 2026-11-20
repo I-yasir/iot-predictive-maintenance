@@ -10,8 +10,7 @@ __pycache__/
 # Generated data & models (raw data in data/raw is committed)
 data/interim/
 data/processed/
-ml/artifacts/**
-!ml/artifacts/**/model_card.json
+# model bundles (ml/artifacts/) ARE committed: ~1 MB per profile, verified by MANIFEST.sha256
 ml/reports/*.png
 
 # Secrets & local config
@@ -28,3 +27,4 @@ iot/esp32/.pio/
 
 # OS
 .DS_Store
+*.egg-info/
