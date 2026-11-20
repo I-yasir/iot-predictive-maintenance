@@ -231,6 +231,25 @@ CV RMSE here is against uncapped truth up to 200 cycles, so it is not comparable
 
 Mean interval width dropped from 91–107 to 70–75 cycles. FD002/FD004 errors are concentrated in true RUL > 125 (RMSE 47 / 44), the region a cap of 125 cannot reach. Next lever, decided on CV only: profile-specific validation range derived from *training* data (e.g. the distribution of remaining life at random truncation of training engines), or a sequence model (M2) for FD002/FD004 — the latter needs owner approval per PRD.
 
+### 7.5.4 Run 3 — P1.10 (post-hoc, ACTIVE bundles `20261120-p3`)
+
+**What changed (all decided on CV, `ml/reports/p110_experiment.json`):**
+* CV now samples truncation points with remaining life in [5, 200] and reports two metrics: primary = [10, 150] (documented range, used for selection) and wide = [5, 200].
+* Tried, CV-only: **horizon blend** (cap-125 model ramping into a cap-160/200 model when it saturates), EWM α = 0.1, and feature windows 50/70/100. The blend improved the wide metric but worsened the primary metric on every profile → **rejected** by the pre-set rule (primary may not worsen by > 0.2). Longer windows improved **both** metrics on every profile → feature window added to the selection grid {30, 50, 70, 100}. α = 0.1 did not help.
+* Selected windows: FD001 50, FD002 100, FD003 70, FD004 70; cap 125 everywhere; extra sensors still rejected.
+
+**Disclosure:** third look at the official test set (after runs 1 and 2). Treat these numbers as optimistic.
+
+| Profile | Config | CV RMSE Ridge / LGBM | Test RMSE run 1 → 2 → **3** | NASA score (run 3) | Coverage | Width | Critical recall | PRD target |
+|---|---|---|---|---|---|---|---|---|
+| FD001 | W 50, leaves 31, min_child 20 | 20.3 / 14.3 | 16.2 → 14.9 → **14.2** | 284 | 0.93 | 82 | 0.92 | ✅ |
+| FD002 | W 100, leaves 31, min_child 20 | 20.9 / 15.8 | 22.8 → 24.8 → **23.4** | 3,745 | 0.79 | 85 | 0.98 | ❌ RMSE ≤ 22, score ≤ 3,000 |
+| FD003 | W 70, leaves 31, min_child 50 | 19.5 / 14.5 | 17.9 → 12.8 → **12.0** | 286 | 0.92 | 89 | 0.85 ⚠️ | ✅ (recall < 0.90) |
+| FD004 | W 70, leaves 31, min_child 50 | 21.5 / 17.1 | 22.6 → 26.1 → **26.0** | 4,492 | 0.78 | 93 | 0.89 | ❌ RMSE ≤ 24 |
+
+LightGBM beats Ridge by 20–29 % in CV everywhere. False Critical rate remains 0 % for all profiles. Online buffer must hold `window` cycles (up to 100), not 64 (docs/04 §8 updated).
+**Residual gap (FD002/FD004):** error is dominated by engines with true RUL > 125 (RMSE ≈ 44), which any cap-125 model under-predicts, while alert-relevant buckets are fine (RUL ≤ 30: 3.4 / 7.3). Closing it without further test-set looks needs a different model class (M2 sequence model, owner approval per PRD) or revised PRD targets for multi-condition profiles. **No further tuning against the test set.**
+
 ### 7.6 Diagnostics (component detail report)
 - **Per-sensor deviation**: z-score of current EWM value vs. the asset's own healthy baseline (first 20 cycles, regime-normalized; fallback to fleet training baseline when < 20 cycles).
 - **Subsystem score** (0–100): `min(100, 100 × mean(|z| of the subsystem's input sensors) / 6)`.

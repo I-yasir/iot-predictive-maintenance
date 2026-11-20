@@ -42,6 +42,12 @@ GRID: list[dict[str, Any]] = [
     {"num_leaves": nl, "min_child_samples": mc} for nl in (15, 31) for mc in (20, 50)
 ]
 CAPS = (110, 125, 140, 160)  # 160 added after 140 won at the grid edge in every profile (CV only)
+WINDOWS = (
+    30,
+    50,
+    70,
+    100,
+)  # P1.10: longer windows improved CV on every profile (ml/reports/p110_experiment.json)
 EXTRA_SENSORS_MULTI = ("P15", "farB")
 MIN_GAIN_EXTRA = 0.3  # cycles of CV RMSE an extra sensor must buy (docs/05 §3.4)
 
@@ -85,21 +91,25 @@ def select(
         "ridge_rmse_std": results[0]["ridge_rmse_std"],
     }
     best = min(results, key=lambda r: r["rmse_mean"])
-    best_params, best_cap, best_sensors = best["params"], RUL_CAP_DEFAULT, sensors
+    best_params, best_cap, best_sensors, best_w = best["params"], RUL_CAP_DEFAULT, sensors, WINDOWS[0]
 
     if not quick:
+        for w in WINDOWS[1:]:
+            r = cv(CVConfig(profile, sensors, RUL_CAP_DEFAULT, best_params, window=w), "window")
+            if r["rmse_mean"] < best["rmse_mean"]:
+                best, best_w = r, w
         for c in CAPS:
             if c != RUL_CAP_DEFAULT:
-                r = cv(CVConfig(profile, sensors, c, best_params), "cap")
+                r = cv(CVConfig(profile, sensors, c, best_params, window=best_w), "cap")
                 if r["rmse_mean"] < best["rmse_mean"]:
                     best, best_cap = r, c
         if profile in MULTI_REGIME:
             ext = (*sensors, *EXTRA_SENSORS_MULTI)
-            r = cv(CVConfig(profile, ext, best_cap, best_params), "sensors")
+            r = cv(CVConfig(profile, ext, best_cap, best_params, window=best_w), "sensors")
             if r["rmse_mean"] <= best["rmse_mean"] - MIN_GAIN_EXTRA:
                 best, best_sensors = r, ext
 
-    final = CVConfig(profile, tuple(best_sensors), best_cap, best_params, quantiles=True)
+    final = CVConfig(profile, tuple(best_sensors), best_cap, best_params, quantiles=True, window=best_w)
     return final, runs, baseline
 
 
@@ -117,7 +127,7 @@ def train_profile(profile: str, quick: bool, version: str) -> dict[str, Any]:
     )
 
     # ---- final fit on all training engines ----
-    pipe = FeaturePipeline(profile, cfg.sensors).fit(train)
+    pipe = FeaturePipeline(profile, cfg.sensors, window=cfg.window, alpha=cfg.alpha).fit(train)
     cols = pipe.feature_names
     F = pipe.transform(train)
     life = train.groupby("unit").cycle.max()

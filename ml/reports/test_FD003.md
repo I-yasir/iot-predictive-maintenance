@@ -1,33 +1,33 @@
 # Official test evaluation — FD003
 
-> **Run 2, post-hoc** (bundle `20261120-p2`). Produced after the test set had been seen once in run 1 (archived in `run1_20261120-p1/`); only the CV validation range changed. See `docs/05_ML_and_Data_Spec.md` §7.5.3.
+> **Run 3, post-hoc** (bundle `20261120-p3`, plan step P1.10). Third look at the official test set; changes since run 2 were selected on CV only (feature window grid {30, 50, 70, 100}). See `docs/05_ML_and_Data_Spec.md` §7.5.4.
 
-Model `20261120-p2` · 100 test engines · last observed cycle vs `RUL_FD003.txt` (uncapped truth).
-Selected config: `cap=125;n_sensors=15;min_child_samples=20,num_leaves=15` · conformal margin ±8.6 cycles.
+Model `20261120-p3` · 100 test engines · last observed cycle vs `RUL_FD003.txt` (uncapped truth).
+Selected config: `cap=125;n_sensors=15;W=70,a=0.3;min_child_samples=50,num_leaves=31` · conformal margin ±17.3 cycles.
 
 | Metric | Value | Target |
 |---|---|---|
-| RMSE (cycles) | **12.83** | ≤ 16 ✅ |
-| NASA score | **269** | ≤ 600 ✅ |
-| MAE | 9.30 | |
-| Bias (pred − true) | -0.24 | |
-| Late by > 20 cycles | 4.0% | ≤ 10% |
-| P10–P90 coverage | 87.0% | 75–90% |
-| Mean interval width | 75.3 | |
-| Critical recall | 0.90 | ≥ 0.90 |
+| RMSE (cycles) | **12.02** | ≤ 16 ✅ |
+| NASA score | **286** | ≤ 600 ✅ |
+| MAE | 8.35 | |
+| Bias (pred − true) | +0.21 | |
+| Late by > 20 cycles | 5.0% | ≤ 10% |
+| P10–P90 coverage | 92.0% | 75–90% |
+| Mean interval width | 88.8 | |
+| Critical recall | 0.85 | ≥ 0.90 |
 | False Critical among healthy | 0.0% | ≤ 5% |
-| CV RMSE LightGBM / Ridge | 14.89 / 19.48 | ≥ 15% better ✅ |
+| CV RMSE LightGBM / Ridge | 14.49 / 19.50 | ≥ 15% better ✅ |
 
-RMSE by true RUL: <=30: 2.9 · 31-75: 7.9 · 76-125: 16.1 · >125: 18.6
+RMSE by true RUL: <=30: 2.7 · 31-75: 10.3 · 76-125: 13.9 · >125: 16.8
 
 ## Alert confusion (thresholds 75 / 30)
 
 ```
 predicted  Healthy  Warning  Critical
 true                                 
-Healthy         47        4         0
-Warning          3       25         1
-Critical         0        2        18
+Healthy         48        3         0
+Warning          4       24         1
+Critical         0        3        17
 ```
 
 ![pred vs true](test_FD003_scatter.png)

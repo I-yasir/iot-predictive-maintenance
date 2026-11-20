@@ -71,6 +71,16 @@ def fit_quantile(
     )
 
 
+BLEND_RAMP = 30.0
+
+
+def blend_horizons(p_low: np.ndarray, p_high: np.ndarray, cap_low: float) -> np.ndarray:
+    """P1.10 horizon blend: trust the low-cap model near failure; as its prediction approaches its cap
+    (where it saturates), ramp over BLEND_RAMP cycles towards the higher-cap model (never below p_low)."""
+    w = np.clip((np.asarray(p_low) - (cap_low - BLEND_RAMP)) / BLEND_RAMP, 0.0, 1.0)
+    return (1 - w) * p_low + w * np.maximum(p_low, p_high)
+
+
 @dataclass
 class RidgeBaseline:
     """M0: standardised features + RidgeCV."""

@@ -256,7 +256,7 @@ Max payload size 4 KB. Sensor keys use C-MAPSS symbols (Table 2 of the PDF) — 
 
 ## 8. Non-Functional Requirements
 - p95 ingest→prediction ≤ 250 ms; ≥ 500 msg/s replay throughput; dashboard update ≤ 2 s.
-- Backend memory ≤ 1 GB with 300 active assets (rolling buffers bounded to 64 cycles/asset).
+- Backend memory ≤ 1 GB with 300 active assets (rolling buffers bounded to the profile's feature window, ≤ 100 cycles/asset).
 - Test coverage ≥ 80 % lines for `ml/pdm_ml` and `backend/app`.
 - Reproducibility: fixed seeds (`SEED=42`), data file SHA-256 recorded in `model_card.json`.
 
