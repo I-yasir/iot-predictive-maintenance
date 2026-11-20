@@ -21,13 +21,17 @@ import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
 from pdm_ml.config import PROFILES, artifacts_dir, reports_dir  # noqa: E402
-from pdm_ml.evaluate.metrics import alert_confusion, rmse_by_bucket, summarize  # noqa: E402
+from pdm_ml.evaluate.metrics import alert_confusion, nasa_score, rmse, rmse_by_bucket, summarize  # noqa: E402
 from pdm_ml.io.loader import load_profile  # noqa: E402
 from pdm_ml.labels.rul import test_rul  # noqa: E402
 from pdm_ml.models.bundle import load_bundle, update_model_card  # noqa: E402
 
 # PRD §4.1
 TARGETS = {"FD001": (16.0, 500.0), "FD002": (22.0, 3000.0), "FD003": (16.0, 600.0), "FD004": (24.0, 4500.0)}
+# Owner decision 2026-11-20 (P1.11): FD002/FD004 RMSE/score targets are scored against true RUL capped at 125
+# (the convention of published C-MAPSS results). Uncapped metrics are always reported as well.
+TRUTH_CAP = 125
+CAPPED_TARGET_PROFILES = frozenset({"FD002", "FD004"})
 
 
 def evaluate_profile(profile: str) -> dict[str, Any]:
@@ -41,10 +45,15 @@ def evaluate_profile(profile: str) -> dict[str, Any]:
     pred, lo, hi = (last[c].to_numpy(float) for c in ("pred", "lo", "hi"))
     m = summarize(y, pred, lo, hi)
     m["rmse_by_true_rul"] = rmse_by_bucket(y, pred)
+    y_cap = np.minimum(y, TRUTH_CAP)
+    m["rmse_capped125"] = rmse(pred, y_cap)
+    m["nasa_score_capped125"] = nasa_score(pred, y_cap)
+    capped = profile in CAPPED_TARGET_PROFILES
     rmse_t, score_t = TARGETS[profile]
+    m["target_basis"] = "truth capped at 125" if capped else "uncapped truth"
     m["targets"] = {"rmse": rmse_t, "nasa_score": score_t}
-    m["meets_rmse_target"] = m["rmse"] <= rmse_t
-    m["meets_score_target"] = m["nasa_score"] <= score_t
+    m["meets_rmse_target"] = (m["rmse_capped125"] if capped else m["rmse"]) <= rmse_t
+    m["meets_score_target"] = (m["nasa_score_capped125"] if capped else m["nasa_score"]) <= score_t
     m["beats_ridge_15pct_cv"] = b.card["cv"]["rmse_mean"] <= 0.85 * b.card["cv"]["ridge_rmse_mean"]
     cm = alert_confusion(y, pred)
 
@@ -64,8 +73,10 @@ def evaluate_profile(profile: str) -> dict[str, Any]:
         "",
         "| Metric | Value | Target |",
         "|---|---|---|",
-        f"| RMSE (cycles) | **{m['rmse']:.2f}** | ≤ {rmse_t:g} {'✅' if m['meets_rmse_target'] else '❌'} |",
-        f"| NASA score | **{m['nasa_score']:.0f}** | ≤ {score_t:g} {'✅' if m['meets_score_target'] else '❌'} |",
+        f"| RMSE, uncapped truth | {'**' if not capped else ''}{m['rmse']:.2f}{'**' if not capped else ''} | {'' if capped else f'≤ {rmse_t:g} ' + ('✅' if m['meets_rmse_target'] else '❌')} |",
+        f"| RMSE, truth capped at 125 | {'**' if capped else ''}{m['rmse_capped125']:.2f}{'**' if capped else ''} | {f'≤ {rmse_t:g} ' + ('✅' if m['meets_rmse_target'] else '❌') if capped else ''} |",
+        f"| NASA score, uncapped | {m['nasa_score']:.0f} | {'' if capped else f'≤ {score_t:g} ' + ('✅' if m['meets_score_target'] else '❌')} |",
+        f"| NASA score, capped at 125 | {m['nasa_score_capped125']:.0f} | {f'≤ {score_t:g} ' + ('✅' if m['meets_score_target'] else '❌') if capped else ''} |",
         f"| MAE | {m['mae']:.2f} | |",
         f"| Bias (pred − true) | {m['bias']:+.2f} | |",
         f"| Late by > 20 cycles | {m['late_gt20_share']:.1%} | ≤ 10% |",
@@ -154,7 +165,9 @@ def main(argv: list[str] | None = None) -> int:
                 "nasa_score": m["nasa_score"],
                 "coverage": m["coverage_p10_p90"],
                 "critical_recall": m["critical_recall"],
+                "rmse_capped125": m["rmse_capped125"],
                 "meets_rmse": m["meets_rmse_target"],
+                "meets_score": m["meets_score_target"],
             }
         )
     print(pd.DataFrame(rows).set_index("profile").round(3).to_string())

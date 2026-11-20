@@ -72,6 +72,8 @@ Acceptance criteria are testable; IDs are referenced by `06_Plan.md`.
 | FD002 | ≤ 22.0 | ≤ 3,000 | ≤ 18.0 |
 | FD004 | ≤ 24.0 | ≤ 4,500 | ≤ 20.0 |
 
+**Scoring basis (owner decision 2026-11-20, P1.11):** FD001/FD003 targets use the uncapped true RUL. FD002/FD004 RMSE and NASA-score targets use the true RUL **capped at 125 cycles**, the convention of published C-MAPSS results: engines that far from failure look healthy, so their exact remaining life is not observable from the data (`05` §7.5.5). Uncapped metrics are always reported alongside.
+
 Must also beat the baseline (Ridge regression on last-cycle regime-normalized features) by ≥ 15 % RMSE on every subset.
 
 - **Alert quality** (replay of test units, using the alert thresholds in `05_ML_and_Data_Spec.md` §7): Critical-state recall ≥ 0.90 for units with true RUL ≤ 30; false Critical rate ≤ 5 % for units with true RUL > 75.

@@ -16,11 +16,14 @@
     "76-125": 15.109814181675798,
     ">125": 42.74397670455338
   },
+  "rmse_capped125": 11.86759118712816,
+  "nasa_score_capped125": 767.4160435344888,
+  "target_basis": "truth capped at 125",
   "targets": {
     "rmse": 24.0,
     "nasa_score": 4500.0
   },
-  "meets_rmse_target": false,
+  "meets_rmse_target": true,
   "meets_score_target": true,
   "beats_ridge_15pct_cv": true
 }

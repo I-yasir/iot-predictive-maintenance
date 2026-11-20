@@ -279,6 +279,8 @@ Rule outcome: the LightGBM + M2 (L 100) mean is adopted for **both** profiles (�
 
 Every bucket at or below 125 cycles improved; the > 125 bucket (57 of 259 and 67 of 248 test engines) did not, and it dominates the miss. On engines with true RUL ≤ 125 the RMSE is 10.5 (FD002) and 12.6 (FD004); with the literature convention of capping the truth at 125 it is 10.0 and 11.9. Engines that far from failure look healthy, so no capped model (LightGBM or M2) can tell 130 from 190 remaining cycles; raising the cap made CV worse (cap-150 rows above). Remaining gap = a target-definition question for the owner, not a modelling one. **No further tuning against the test set.**
 
+**Owner decision (2026-11-20):** FD002/FD004 targets are scored against true RUL capped at 125 (PRD §4.1). Re-scoring the same run-4 predictions (no new model, no new fit): FD002 RMSE **10.02** ✅ (≤ 22; stretch ≤ 18 ✅), NASA score 439 ✅; FD004 RMSE **11.87** ✅ (≤ 24; stretch ≤ 20 ✅), NASA score 767 ✅. All four profiles now meet their PRD RMSE and score targets (`ml/reports/test_FD00x.md`). Open item: FD003 Critical recall 0.85 vs. 0.90.
+
 
 ### 7.6 Diagnostics (component detail report)
 - **Per-sensor deviation**: z-score of current EWM value vs. the asset's own healthy baseline (first 20 cycles, regime-normalized; fallback to fleet training baseline when < 20 cycles).

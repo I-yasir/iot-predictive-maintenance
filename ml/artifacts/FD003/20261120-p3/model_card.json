@@ -167,6 +167,9 @@
       "76-125": 13.916782347937477,
       ">125": 16.808344461801436
     },
+    "rmse_capped125": 10.513699276639025,
+    "nasa_score_capped125": 254.20261977680855,
+    "target_basis": "uncapped truth",
     "targets": {
       "rmse": 16.0,
       "nasa_score": 600.0
