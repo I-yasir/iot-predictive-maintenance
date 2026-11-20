@@ -46,3 +46,24 @@ def test_three_consecutive_failures_set_error():
     sim = ReplaySimulator(ReplayConfig("FD001", units=[1], speed_cps=0), Down())
     sim.start(block=True)
     assert sim.state == ReplayState.ERROR and sim.stats.sent == 3
+
+
+def test_loop_laps_and_new_runs_get_fresh_msg_ids():
+    """Ingest dedups on msg_id, so a looped lap must not reuse the previous lap's ids."""
+    import time as _t
+
+    t = MemoryTransport()
+    sim = ReplaySimulator(ReplayConfig("FD001", units=[1], speed_cps=0, loop=True), t)
+    sim.start()
+    deadline = _t.time() + 10
+    while len(t.sent) < 31 * 3 and _t.time() < deadline:  # unit 1 has 31 cycles
+        _t.sleep(0.01)
+    sim.stop()
+    ids = [json.loads(b)["msg_id"] for b in t.sent]
+    cycles = [json.loads(b)["cycle"] for b in t.sent]
+    assert cycles.count(1) >= 3
+    assert len(ids) == len(set(ids))
+
+    t2 = MemoryTransport()
+    ReplaySimulator(ReplayConfig("FD001", units=[1], speed_cps=0), t2).start(block=True)
+    assert not set(ids) & {json.loads(b)["msg_id"] for b in t2.sent}

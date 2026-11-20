@@ -15,6 +15,7 @@ import argparse
 import json
 import logging
 import os
+import secrets
 import sys
 import threading
 import time
@@ -95,8 +96,12 @@ def select_units(df: pd.DataFrame, cfg: ReplayConfig) -> list[int]:
     return all_units
 
 
-def build_messages(cfg: ReplayConfig) -> Iterator[list[dict[str, Any]]]:
-    """Yield one tick at a time: a list with the next cycle of every still-active unit."""
+def build_messages(cfg: ReplayConfig, run_tag: str = "") -> Iterator[list[dict[str, Any]]]:
+    """Yield one tick at a time: a list with the next cycle of every still-active unit.
+
+    ``run_tag`` goes into every msg_id so that a looped lap or a new run is not mistaken
+    for a re-delivery of the previous one (ingest dedups on msg_id).
+    """
     df = load_split(cfg.profile, "test" if cfg.split == "test" else "train")
     units = select_units(df, cfg)
     df = df[df.unit.isin(units)]
@@ -123,7 +128,7 @@ def build_messages(cfg: ReplayConfig) -> Iterator[list[dict[str, Any]]]:
                 site_id=cfg.site_id, asset_id=aid, profile=cfg.profile, source="REPLAY",
                 seq=seq[u], cycle=int(r["cycle"]),
                 settings={k: r[k] for k in SETTINGS}, sensors={k: r[k] for k in sensors},
-                msg_prefix=f"replay-{aid}",
+                msg_prefix=f"replay-{run_tag}-{aid}" if run_tag else f"replay-{aid}",
                 meta={"true_rul": int(r["true_rul"]), "split": cfg.split, "unit": u, "len": len(rows),
                       "eol": j == len(rows) - 1},
             ))
@@ -190,8 +195,11 @@ class ReplaySimulator:
         period = 1.0 / self.cfg.speed_cps if self.cfg.speed_cps > 0 else 0.0
         consecutive_fail = 0
         try:
+            run = secrets.token_hex(3)
+            lap = 0
             while True:
-                for tick in build_messages(self.cfg):
+                lap += 1
+                for tick in build_messages(self.cfg, run_tag=f"{run}{lap}"):
                     t0 = time.monotonic()
                     for msg in tick:
                         self._resume.wait()

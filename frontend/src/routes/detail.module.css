@@ -12,8 +12,8 @@
 .heroCard { display: flex; gap: var(--space-5); align-items: center; flex-wrap: wrap; justify-content: space-between; }
 .hero { font: var(--type-display); font-variant-numeric: tabular-nums; }
 .stack { display: grid; gap: var(--space-4); align-content: start; min-width: 0; }
-.subs { display: grid; gap: var(--space-4); grid-template-columns: 1fr; }
-@media (min-width: 1440px) { .subs { grid-template-columns: 1fr 1fr; } }
+.subs { display: grid; gap: var(--space-4); grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 1440px) { .subs { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
 .disclaimer { font: var(--type-small); color: var(--state-warning-text); background: var(--state-warning-bg); padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); }
 .selector { position: relative; min-width: 240px; }
 .listbox {

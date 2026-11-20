@@ -244,14 +244,14 @@ function SubsystemSensors({ d, h }: { d: Diagnostics; h?: SensorHistory }) {
     return m;
   }, [d.sensor_subsystem]);
   return (
-    <div className="card" style={{ display: "grid", gap: 8, alignContent: "start" }}>
+    <div className="card" style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 8, alignContent: "start" }}>
       <header><h3>Sensors by subsystem</h3></header>
       {[...SUBSYSTEMS, "Engine"].filter((k) => bySub[k]).map((k) => (
         <details key={k} open={(d.latest?.subsystem_scores?.[k] ?? 0) >= 40}>
           <summary style={{ font: "var(--type-body)", color: "var(--text-primary)", fontWeight: 600 }}>
             {k} <span className="muted num">· score {d.latest?.subsystem_scores?.[k]?.toFixed(0) ?? "n/a"}</span>
           </summary>
-          <div style={{ overflowX: "auto" }}><table>
+          <div style={{ overflowX: "auto" }} tabIndex={0} role="region" aria-label={`${k} sensors`}><table>
             <thead><tr><th scope="col">Sensor</th><th scope="col" className="r">Value</th><th scope="col" className="r">Baseline</th><th scope="col" className="r">z</th></tr></thead>
             <tbody>
               {bySub[k].map((sym) => {
@@ -283,7 +283,7 @@ function AlertsTab({ id }: { id: string }) {
   if (q.isError) return <ErrorCard message={(q.error as Error).message} onRetry={() => void q.refetch()} />;
   if (!q.data.items.length) return <div className="card"><p className="muted">No alerts for this asset.</p></div>;
   return (
-    <div className="card table-wrap" style={{ maxHeight: "none" }}>
+    <div className="card table-wrap" style={{ maxHeight: "none" }} tabIndex={0} role="region" aria-label={`Alert history for ${id}`}>
       <table>
         <caption className="sr-only">Alert history for {id}</caption>
         <thead><tr><th scope="col">Time</th><th scope="col">Life</th><th scope="col" className="r">Cycle</th><th scope="col">Transition</th><th scope="col" className="r">RUL</th><th scope="col">Acknowledged</th></tr></thead>

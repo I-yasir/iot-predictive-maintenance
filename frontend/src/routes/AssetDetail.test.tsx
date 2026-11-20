@@ -22,7 +22,7 @@ describe("Component Detail Report", () => {
     expect(screen.getAllByText("Critical")[0]).toBeInTheDocument();
     expect(screen.getByText("P10–P90: 8–30 cycles")).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "Health index 0.14 of 1" })).toBeInTheDocument();
-    expect(await screen.findByRole("img", { name: /^RUL decreased from 125 to \d+ cycles over 115 cycles$/ })).toBeInTheDocument();
+    expect(await screen.findByRole("group", { name: /^RUL decreased from 125 to \d+ cycles over 115 cycles$/ })).toBeInTheDocument();
     expect(screen.getByText("True RUL (replay)")).toBeInTheDocument();
     const gt = screen.getByTestId("gt-card");
     expect(gt).toHaveTextContent("Error at cycle 120: +6 cycles");

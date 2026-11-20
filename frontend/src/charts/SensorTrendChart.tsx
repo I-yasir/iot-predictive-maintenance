@@ -53,6 +53,7 @@ export function SensorSmall({ meta, rows, constant, syncId, height = 180 }: { me
       </figcaption>
       {constant ? <p className="muted" style={{ font: "var(--type-small)" }}>Constant in this profile (not used by the model).</p> : null}
       <div role="img" aria-label={label} style={{ width: "100%", height }}>
+        <div aria-hidden="true" style={{ width: "100%", height: "100%" }}>
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={data} syncId={syncId} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
             <CartesianGrid stroke="var(--border)" strokeOpacity={0.5} vertical={false} />
@@ -66,6 +67,7 @@ export function SensorSmall({ meta, rows, constant, syncId, height = 180 }: { me
             <Scatter dataKey="anomaly" fill="var(--state-warning)" shape={<Dot r={3} k="anomaly" />} isAnimationActive={false} />
           </ComposedChart>
         </ResponsiveContainer>
+        </div>
       </div>
       <DataFallback caption={label} columns={["Cycle", "Value", "Rolling mean", "Baseline low", "Baseline high", "z"]}
         rows={data.slice(-100).map((d) => [d.cycle, fmtSensor(meta.symbol, d.raw), fmtSensor(meta.symbol, d.mean), fmtSensor(meta.symbol, d.band?.[0]), fmtSensor(meta.symbol, d.band?.[1]), d.z === null ? "—" : d.z.toFixed(2)])} />

@@ -75,8 +75,9 @@ export function Shell({ children }: { children: ReactNode }) {
   const live = useLive();
   return (
     <div className={s.app}>
+      <a href="#main" className="skip-link">Skip to content</a>
       <header className={s.top}>
-        <Link to="/overview" className={s.brand}>
+        <Link to="/overview" className={s.brand} aria-label="PdM-Live overview">
           <Activity size={20} color="var(--accent)" aria-hidden="true" />
           <span className={s.brandText}>PdM-Live</span>
         </Link>
@@ -96,7 +97,7 @@ export function Shell({ children }: { children: ReactNode }) {
             </NavLink>
           ))}
         </nav>
-        <main className={s.main} id="main">
+        <main className={s.main} id="main" tabIndex={-1}>
           <ErrorBoundary resetKey={loc.pathname}>{children}</ErrorBoundary>
         </main>
       </div>

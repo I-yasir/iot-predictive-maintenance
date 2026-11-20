@@ -75,6 +75,19 @@ Design principles:
 | @playwright/test | 1.53.0 (E2E) |
 | eslint | 9.28.0 + typescript-eslint 8.34.0 |
 
+Dev-only additions made in P4 (tests and lint only, none ship in the bundle):
+
+| Library | Version | Why |
+|---|---|---|
+| @axe-core/playwright | 4.10.2 | P4.9 accessibility gate (0 serious/critical violations) |
+| @testing-library/jest-dom | 6.6.3 | DOM matchers for the component tests |
+| @testing-library/user-event | 14.6.1 | realistic keyboard/click input in component tests |
+| jsdom | 26.1.0 | vitest DOM environment |
+| @types/react, @types/react-dom, @types/node | 18.3.23, 18.3.7, 22.15.30 | type checking |
+| eslint-plugin-react-hooks, globals, @eslint/js | 5.2.0, 16.2.0, 9.28.0 | ESLint flat config |
+
+`package.json` pins `overrides.playwright-core = 1.53.0` because @axe-core/playwright otherwise pulls a newer playwright-core whose `Page` type does not match @playwright/test 1.53.0.
+
 Styling: plain CSS modules + `tokens.css` (no Tailwind, no component library) to keep the design system explicit.
 
 ### 2.5 IoT (`iot/`)
@@ -155,14 +168,18 @@ pytest 8.4.0, pytest-asyncio 1.0.0, pytest-cov 6.1.1, hypothesis 6.135.0 (payloa
 │   ├── perf/load_test.py      # P3.9 load test -> reports/perf_p39.{json,md}
 │   └── tests/
 ├── frontend/
-│   ├── package.json, vite.config.ts, tsconfig.json
+│   ├── package.json, vite.config.ts (dev :5173 / preview :8080, proxies /api and /ws to PDM_BACKEND), tsconfig.json, eslint.config.js
+│   ├── playwright.config.ts   # P4.9 e2e against the real stack (uses /opt/pw-browsers/chromium when present)
 │   ├── src/
-│   │   ├── styles/tokens.css
-│   │   ├── api/ (client, zod schemas, ws)
-│   │   ├── components/ (charts, tiles, chips, selector, states)
-│   │   ├── routes/ (Overview, AssetDetail, AssetReport, Test, Alerts, ModelCard, NotFound)
-│   │   └── hooks/
-│   └── tests/ (vitest) , e2e/ (playwright)
+│   │   ├── styles/            # tokens.css (03 §1 + --state-*-text), global.css
+│   │   ├── api/               # client.ts (fetch + zod + backend health), schemas.ts, queries.ts (react-query hooks), ws.ts (reconnect/backoff)
+│   │   ├── hooks/live.tsx     # LiveProvider: WS events merged into the query cache, stale detection
+│   │   ├── components/        # StateChip, SourceBadge, Flags, AssetTile, Sparkline, HealthGauge, States (skeleton/empty/error/data fallback)
+│   │   ├── charts/            # RulTrendChart, SensorTrendChart, Diagnostics (SubsystemBar/Strip, ContributionList)
+│   │   ├── routes/            # Shell, Login, Overview, AssetSelector, AssetDetail, AssetReport, Alerts, TestPage, ModelCard, Tokens, NotFound (+ *.test.tsx)
+│   │   ├── lib/               # contrast, format, states (thresholds, labels)
+│   │   └── test/              # vitest setup, fixtures (mocked API), renderApp helper
+│   └── e2e/dashboard.spec.ts  # 4 viewports × dark/light screenshots + axe, keyboard, reduced motion
 ├── tests/e2e/                 # cross-service Mode 1 / Mode 2 scenarios
 ├── docker-compose.yml
 ├── .env.example
@@ -177,6 +194,8 @@ pytest 8.4.0, pytest-asyncio 1.0.0, pytest-cov 6.1.1, hypothesis 6.135.0 (payloa
 | db | 5432 | volume `pgdata` |
 | backend | 8000 | `/api/v1/*`, `/ws/v1/stream`, `/metrics`, `/healthz`, `/readyz` |
 | frontend | 8080 | nginx proxies `/api` and `/ws` to backend |
+
+Until the frontend container lands (P5), `make frontend-preview` serves the production build on :8080 with Vite's proxy doing the same `/api` + `/ws` forwarding (`PDM_BACKEND`, default `http://localhost:8000`); `make frontend-dev` runs the hot-reload server on :5173.
 
 All config via environment (`.env`, never committed): `DATABASE_URL`, `MQTT_HOST`, `MQTT_PORT`, `MQTT_USERNAME` (default `pdm-backend`), `MQTT_BACKEND_PASSWORD`, `MQTT_TOPIC_PREFIX=pdm/v1`, `MQTT_WORKERS` (default 2), `INGEST_API_KEY`, `DASHBOARD_PASSWORD`, `SESSION_SECRET` (≥ 32 random chars; signs the session cookie), `MODEL_ROOT=ml/artifacts`, `ACTIVE_PROFILES=FD001,FD002,FD003,FD004`, `ALERTS_CONFIG=config/alerts.yaml`, `DATA_RAW_DIR=data/raw/cmapss`, `CORS_ORIGINS`, `LOG_LEVEL`, `AUTO_MIGRATE` (default true: `alembic upgrade head` at startup; `pdm-backend migrate` does it explicitly).
 
@@ -239,6 +258,12 @@ Max payload size 4 KB. Sensor keys use C-MAPSS symbols (Table 2 of the PDF) — 
 
 ### 5.4 Core REST API (all under `/api/v1`)
 `GET /assets` · `GET /assets/{id}` · `GET /assets/{id}/telemetry?from_cycle&to_cycle&sensors=` · `GET /assets/{id}/predictions?limit` · `GET /assets/{id}/diagnostics` · `GET /assets/{id}/report` · `POST /assets/{id}/ground-truth` · `GET /alerts?state&asset&ack&limit` · `POST /alerts/{id}/ack` · `GET /models` · `POST /sim/replay/start|pause|resume|stop` · `GET /sim/replay/status` · `GET /devices` · `POST /devices/{id}/harness-check` · `GET /stats` · `POST /ingest` · `POST /ingest/batch`. OpenAPI generated at `/docs` (dev only).
+
+Added in P4.10 for the dashboard (session cookie required, tests in `backend/tests/test_api.py`):
+
+- `GET /assets/{id}/sensors?limit=&life_id=` — raw sensor history for the detail Sensors/Subsystems tabs. Returns `sensors` (21 symbols with description, unit, subsystem), `model_sensors`, `constant_sensors` (raw min = max in the drift reference), `baseline_source` (`asset` once the asset has 20 cycles, else `fleet`), and `items[]` with `cycle`, `regime`, `flags`, `raw{}`, `dev_z{}` (regime-normalised deviation from the asset's first-20-cycle baseline) and `band{}` (baseline ±3 sd mapped back to raw units for that cycle's regime).
+- `GET /evaluation` — latest `make evaluate` results per profile (`ml/reports/test_FD00?.json`) plus the alert confusion matrix parsed from the matching `.md`; `labels` + `items[]`. Feeds the Test page batch-evaluation panel.
+- `GET /dead-letter?limit=` — most recent rejected messages with reason; `raw` decoded and truncated to 2 KB (`raw_truncated` flag).
 
 ### 5.5 WebSocket events
 `{"type":"prediction","data":{asset_id,cycle,rul_pred,rul_p10,rul_p90,health_index,state,flags,ts}}`, `{"type":"alert","data":{...}}`, `{"type":"asset_status","data":{asset_id,state,last_seen}}`, `{"type":"sim_status","data":{...}}`, `{"type":"heartbeat","ts":...}` every 15 s.

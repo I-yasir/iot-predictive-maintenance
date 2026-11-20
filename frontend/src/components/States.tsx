@@ -83,7 +83,7 @@ export function DataFallback({ caption, columns, rows }: { caption: string; colu
   return (
     <details>
       <summary>View data</summary>
-      <div className="table-wrap">
+      <div className="table-wrap" tabIndex={0} role="region" aria-label={`${caption}: data`}>
         <table>
           <caption className="sr-only">{caption}</caption>
           <thead>

@@ -38,7 +38,7 @@ export function Alerts() {
       {q.isPending ? <Loading rows={1} h={300} /> : q.isError ? <ErrorCard message={(q.error as Error).message} onRetry={() => void q.refetch()} /> : !q.data.items.length ? (
         <div className="card"><p className="muted">No alerts match.</p></div>
       ) : (
-        <div className="card table-wrap" style={{ maxHeight: "70vh", padding: 0 }}>
+        <div className="card table-wrap" style={{ maxHeight: "70vh", padding: 0 }} tabIndex={0} role="region" aria-label="Alert log">
           <table>
             <caption className="sr-only">Alert log</caption>
             <thead><tr><th scope="col">Time</th><th scope="col">Asset</th><th scope="col" className="r">Cycle</th><th scope="col">Transition</th><th scope="col" className="r">RUL</th><th scope="col">Reason</th><th scope="col">Acknowledged</th></tr></thead>

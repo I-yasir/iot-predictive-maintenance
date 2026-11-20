@@ -50,7 +50,7 @@ export function RulTrendChart({ predictions, alerts = [], height = 320, cursorCy
         </div>
         {zoomed ? <button onClick={() => setZoom({})}>Reset zoom</button> : null}
       </div>
-      <div role="img" aria-label={summary} style={{ width: "100%", height }}>
+      <div role="group" aria-label={summary} style={{ width: "100%", height }}>
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={rows} margin={{ top: 8, right: 76, bottom: 0, left: 0 }}>
             <CartesianGrid stroke="var(--border)" strokeOpacity={0.5} vertical={false} />

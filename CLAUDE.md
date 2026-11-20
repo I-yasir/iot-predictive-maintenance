@@ -58,4 +58,7 @@ make test        # ML tests; make test-iot for contracts + IoT (broker tests nee
 make esp32-build # PlatformIO build of iot/esp32 (flashing: iot/esp32/README.md)
 make backend     # Phase 3 API + MQTT subscriber on :8000 (make migrate, make test-backend, make lint-backend)
 make perf        # P3.9 load test (500 msg/s, 300 assets, 5 min) -> reports/perf_p39.md
+make frontend-install  # P4 dashboard deps (npm ci), then make frontend-dev (:5173) or make frontend-build + frontend-preview (:8080)
+make test-frontend     # eslint + tsc + vitest component tests
+make e2e               # Playwright at 375/768/1280/1920 px, dark + light, axe (needs backend, preview and a replay running)
 ```

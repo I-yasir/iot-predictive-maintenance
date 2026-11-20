@@ -35,6 +35,18 @@ All tokens are CSS custom properties in `frontend/src/styles/tokens.css`. Compon
 
 Rules: every state appearance = color **+ icon + text label** (WCAG 1.4.1). Text on state tints must meet 4.5:1. Critical tiles additionally get a 2 px left border and are sorted first by default.
 
+**Label-text tokens (added in P4.1, 2026-11-20).** Several fg hues above fall below 4.5:1 when used as *text* on their own tint (measured in `frontend/src/lib/tokens.test.ts`). Text labels therefore use `--state-*-text`, the nearest shade that passes; icons, borders and chart marks keep the hues above (all ≥ 3:1, WCAG 1.4.11).
+
+| Token | Dark | Light |
+|---|---|---|
+| `--state-healthy-text` | `#3FB950` | `#187432` |
+| `--state-warning-text` | `#D29922` | `#885B00` |
+| `--state-critical-text` | `#F96E67` | `#C3202B` |
+| `--state-offline-text` / `--state-warming-text` | `#929AA4` | `#5E666F` |
+| `--state-degraded-text` | `#D29922` | `#885B00` |
+
+`--on-accent` is the text colour on accent-filled buttons and the skip link.
+
 ### 1.3 Color — data visualization
 
 - Series palette (categorical, colorblind-safe, validated in both themes): `--viz-1 #4C9AFF`, `--viz-2 #F778BA`, `--viz-3 #56D4DD`, `--viz-4 #E3B341`, `--viz-5 #A371F7`, `--viz-6 #7EE787`. Never reuse state colors for categorical series.

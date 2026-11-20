@@ -61,7 +61,7 @@
 .tileTop { display: flex; justify-content: space-between; align-items: center; gap: var(--space-2); }
 .tileId { font-family: var(--font-mono); font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
 .rulHero { font: 600 32px/36px var(--font-sans); font-variant-numeric: tabular-nums; }
-.stale { color: var(--text-disabled); }
+.stale { color: var(--state-offline-text); }
 .tileMeta { display: flex; justify-content: space-between; align-items: center; gap: var(--space-2); font: var(--type-small); color: var(--text-secondary); }
 .band { font: var(--type-small); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
 

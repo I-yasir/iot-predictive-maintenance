@@ -60,6 +60,7 @@ td.r, th.r { text-align: right; }
 
 details > summary { cursor: pointer; color: var(--text-secondary); font: var(--type-small); min-height: 24px; }
 .table-wrap { overflow: auto; max-height: 420px; }
+td a { display: inline-block; min-height: 24px; line-height: 24px; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
@@ -67,3 +68,17 @@ details > summary { cursor: pointer; color: var(--text-secondary); font: var(--t
 @media print {
   body { background: #fff; color: #000; }
 }
+
+.skip-link {
+  position: absolute;
+  left: 8px;
+  top: -48px;
+  z-index: 100;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm, 4px);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+.skip-link:focus { top: 8px; }
+main:focus { outline: none; }

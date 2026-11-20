@@ -78,3 +78,23 @@ lint-backend:
 
 perf:             ## P3.9 load test: 500 msg/s, 300 assets, 5 min -> reports/perf_p39.md
 	set -a; . ./.env; set +a; $(PY) backend/perf/load_test.py --rate 500 --assets 300 --duration 300
+
+.PHONY: frontend-install frontend-dev frontend-build frontend-preview test-frontend e2e
+
+frontend-install: ## P4 dashboard dependencies (exact pins from package-lock.json)
+	cd frontend && npm ci
+
+frontend-dev:     ## hot-reload dashboard on :5173, proxies /api and /ws to PDM_BACKEND (default :8000)
+	cd frontend && npm run dev
+
+frontend-build:   ## type-check + production build -> frontend/dist
+	cd frontend && npm run build
+
+frontend-preview: ## serve frontend/dist on :8080 with the same proxy
+	cd frontend && npm run preview
+
+test-frontend:    ## lint, type-check and vitest component tests
+	cd frontend && npm run lint && npm run typecheck && npm test
+
+e2e:              ## P4.9 Playwright: needs `make backend`, `make frontend-preview` and a running replay
+	set -a; . ./.env; set +a; cd frontend && npm run e2e

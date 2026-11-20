@@ -215,7 +215,7 @@ function DevicesPanel() {
       {devices.isPending ? <Loading rows={1} h={80} /> : !items.length ? (
         <p className="muted">No ESP32 or virtual ESP32 has sent data yet. Flash the board (see setup help below) or run <code>make harness</code> for a virtual one.</p>
       ) : (
-        <div className="table-wrap">
+        <div className="table-wrap" tabIndex={0} role="region" aria-label="Devices">
           <table>
             <caption className="sr-only">Devices</caption>
             <thead><tr><th scope="col">Device</th><th scope="col">State</th><th scope="col">Firmware</th><th scope="col" className="r">RSSI</th><th scope="col">IP</th><th scope="col" className="r">Rate</th><th scope="col" className="r">Seq gaps</th><th scope="col" className="r">Latency p50/p95</th><th scope="col">Last seen</th><th scope="col"><span className="sr-only">Actions</span></th></tr></thead>
