@@ -146,3 +146,70 @@ def ground_truth(asset_id: str, body: GroundTruth, e: Engine = Depends(engine)) 
         c.execute(text("UPDATE assets SET true_rul_at_end = :v WHERE asset_id = :a"),
                   {"v": body.true_rul_at_end, "a": asset_id})
     return {"asset_id": asset_id, "true_rul_at_end": body.true_rul_at_end}
+
+
+@router.get("/assets/{asset_id}/sensors")
+def sensors(asset_id: str, request: Request, e: Engine = Depends(engine),
+            limit: int = Query(300, ge=1, le=2000), life_id: int | None = None) -> dict[str, Any]:
+    """Sensor history for the trend charts (docs/03 §3.2 SensorTrendChart).
+
+    Per row: raw values of all 21 sensors, the regime and, for the model's sensors, the deviation z vs. the
+    asset's own healthy baseline (first 20 cycles of this life, regime-normalised; fleet baseline below 20
+    cycles, same rule as the diagnostics) and that baseline's ±3σ band converted back to raw units for the
+    row's regime. Anomaly = |dev_z| > 3.
+    """
+    import numpy as np
+    import pandas as pd
+
+    from pdm_ml.config import BASELINE_CYCLES, SETTINGS
+    from pdm_ml.diagnostics.subsystems import asset_baseline
+    from pdm_ml.io.loader import sensor_catalog
+
+    a = _asset(e, asset_id)
+    life = life_id or a["life_id"]
+    bundle = request.app.state.registry.get(a["profile"])
+    first = rows(e, """SELECT cycle, settings, sensors FROM telemetry WHERE asset_id = :a AND life_id = :l
+                       ORDER BY cycle, received_at LIMIT :n""", a=asset_id, l=life, n=BASELINE_CYCLES)
+    last = rows(e, """SELECT cycle, regime, settings, sensors, flags FROM telemetry
+                      WHERE asset_id = :a AND life_id = :l ORDER BY cycle DESC, received_at DESC LIMIT :n""",
+                a=asset_id, l=life, n=limit)[::-1]
+    cat = sensor_catalog()
+    meta = [{"symbol": c.symbol, "description": c.description, "unit": c.unit, "subsystem": c.subsystem}
+            for c in cat]
+    out: dict[str, Any] = {"asset_id": asset_id, "life_id": life, "sensors": meta, "model_sensors": [],
+                           "constant_sensors": [], "baseline_source": None, "items": []}
+    if not last:
+        return out
+    items = [{"cycle": r["cycle"], "regime": r["regime"], "flags": r["flags"], "raw": r["sensors"]} for r in last]
+    out["items"] = items
+    if bundle is None:
+        return out
+    pipe = bundle.pipeline
+    norm = pipe.normalizer
+    assert norm is not None
+    used = list(pipe.sensors_used)
+    out["model_sensors"] = used
+    out["constant_sensors"] = [c.symbol for c in cat if c.symbol in bundle.drift.raw_min
+                               and bundle.drift.raw_min[c.symbol] == bundle.drift.raw_max[c.symbol]]
+
+    def frame(rs: list[dict[str, Any]]) -> pd.DataFrame:
+        return pd.DataFrame([{"unit": 0, "cycle": r["cycle"], **{s: r["settings"][s] for s in SETTINGS},
+                              **{s: r["sensors"].get(s, np.nan) for s in norm.sensors}} for r in rs])
+
+    zf = norm.transform(frame(first))
+    mu, sd = asset_baseline(zf[used].to_numpy(float), bundle.fleet_baseline, BASELINE_CYCLES)
+    out["baseline_source"] = "asset" if len(first) >= BASELINE_CYCLES else "fleet"
+    zl = norm.transform(frame(last))
+    idx = [norm.sensors.index(s) for s in used]
+    assert norm.mu_ is not None and norm.sd_ is not None
+    for k, it in enumerate(items):
+        r = int(zl.regime.iloc[k])
+        z = zl[used].iloc[k].to_numpy(float)
+        dev = (z - mu) / sd
+        rmu, rsd = norm.mu_[r][idx], norm.sd_[r][idx]
+        lo, hi = rmu + (mu - 3 * sd) * rsd, rmu + (mu + 3 * sd) * rsd
+        it["regime"] = r
+        it["dev_z"] = {s: round(float(v), 3) for s, v in zip(used, dev, strict=True) if np.isfinite(v)}
+        it["band"] = {s: [round(float(x), 4), round(float(y), 4)] for s, x, y in zip(used, lo, hi, strict=True)
+                      if np.isfinite(x) and np.isfinite(y)}
+    return out

@@ -1,0 +1,22 @@
+.grid { display: grid; gap: var(--space-4); grid-template-columns: 1fr; align-items: start; }
+@media (min-width: 1024px) { .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+.form { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+.form .wide { grid-column: 1 / -1; }
+.controls { display: flex; gap: var(--space-2); flex-wrap: wrap; align-items: center; }
+.counters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-2); }
+.counter { background: var(--surface-2); border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3); display: grid; }
+.counter strong { font: var(--type-h2); font-variant-numeric: tabular-nums; }
+.progress { display: grid; gap: var(--space-1); max-height: 240px; overflow: auto; margin: 0; padding: 0; list-style: none; }
+.progress li { display: grid; grid-template-columns: 140px 1fr 80px; gap: var(--space-2); align-items: center; font: var(--type-small); }
+.track { height: 6px; background: var(--surface-2); border-radius: 3px; overflow: hidden; }
+.fill { height: 100%; background: var(--viz-1); }
+.checks { display: grid; gap: var(--space-1); margin: 0; padding: 0; list-style: none; }
+.checks li { display: grid; grid-template-columns: 24px 120px 1fr; gap: var(--space-2); align-items: start; }
+.pre { font-family: var(--font-mono); font-size: 12px; background: var(--surface-2); border-radius: var(--radius-sm); padding: var(--space-2); overflow: auto; max-height: 240px; white-space: pre-wrap; word-break: break-all; margin: 0; }
+.conf td, .conf th { text-align: right; padding: 2px 8px; }
+.evalGrid { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+.rate { display: flex; align-items: end; gap: 2px; height: 80px; }
+.rateBar { flex: 1; display: flex; flex-direction: column-reverse; min-width: 4px; }
+.form select, .form input:not([type="checkbox"]):not([type="range"]) { width: 100%; }
+.check { display: flex !important; flex-direction: row; gap: var(--space-2); align-items: center; align-self: end; min-height: 36px; color: var(--text-primary); font: var(--type-body); }
+.full { grid-column: 1 / -1; }

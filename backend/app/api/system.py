@@ -19,6 +19,30 @@ def models(request: Request) -> dict[str, Any]:
     return {"items": request.app.state.registry.describe()}
 
 
+@router.get("/evaluation")
+def evaluation(request: Request) -> dict[str, Any]:
+    """Latest Mode 1 batch evaluation (`make evaluate`, written to ml/reports/test_FD00x.{json,md}), US-11."""
+    import json
+    import re
+    from datetime import UTC, datetime
+
+    root = request.app.state.settings.path("ml/reports")
+    items = []
+    for p in sorted(root.glob("test_FD00?.json")):
+        d = json.loads(p.read_text())
+        md = p.with_suffix(".md")
+        conf = None
+        if md.exists():  # the alert confusion table is only in the markdown report
+            m = re.search(r"predicted\s+Healthy\s+Warning\s+Critical\s*\ntrue\s*\n((?:\w+(?:\s+\d+){3}\s*\n){3})",
+                          md.read_text())
+            if m:
+                conf = {ln.split()[0]: [int(x) for x in ln.split()[1:]] for ln in m.group(1).strip().splitlines()}
+        items.append({"profile": p.stem.removeprefix("test_"), "generated": datetime.fromtimestamp(
+            p.stat().st_mtime, UTC).isoformat(timespec="seconds"), "confusion": conf,
+            "report": f"ml/reports/{md.name}", **d})
+    return {"labels": ["Healthy", "Warning", "Critical"], "items": items}
+
+
 @router.get("/stats")
 def stats(request: Request, e: Engine = Depends(engine)) -> dict[str, Any]:
     ingest = request.app.state.ingest
@@ -29,6 +53,18 @@ def stats(request: Request, e: Engine = Depends(engine)) -> dict[str, Any]:
     return {"ingest": ingest.stats.snapshot(), "active_assets": len(ingest.assets), "drift_assets": drift,
             "dead_letter_24h": dl, "mqtt_connected": request.app.state.mqtt_connected(),
             "db_ok": ingest.db_ok}
+
+
+@router.get("/dead-letter")
+def dead_letter(e: Engine = Depends(engine), limit: int = Query(20, ge=1, le=200)) -> dict[str, Any]:
+    """Latest rejected messages for the dead-letter viewer (raw payload truncated to 2 KB, decoded leniently)."""
+    items = rows(e, "SELECT id, received_at, transport, topic, asset_id, reason, detail, raw FROM dead_letter "
+                    "ORDER BY received_at DESC, id DESC LIMIT :n", n=limit)
+    for it in items:
+        raw = it.pop("raw") or b""
+        it["raw"] = bytes(raw[:2048]).decode("utf-8", errors="replace")
+        it["raw_truncated"] = len(raw) > 2048
+    return {"items": items}
 
 
 @router.get("/devices")

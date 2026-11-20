@@ -91,10 +91,14 @@ def test_new_life_on_cycle_restart(client: TestClient) -> None:
     msgs = replay_msgs()
     for m in msgs[:20]:
         post(client, m)
+    eol = {**msgs[20], "meta": {**msgs[20]["meta"], "eol": True}}
+    post(client, eol)
+    assert q(client, "SELECT true_rul_at_end FROM assets")[0]["true_rul_at_end"] == eol["meta"]["true_rul"]
     restart = {**msgs[0], "msg_id": "restart-1", "seq": 999}
     assert post(client, restart).status_code == 200
     a = q(client, "SELECT life_id, state, last_cycle FROM assets")[0]
     assert a == {"life_id": 2, "state": "WARMING_UP", "last_cycle": 1}
+    assert q(client, "SELECT true_rul_at_end FROM assets")[0]["true_rul_at_end"] is None  # previous life's truth
     assert q(client, "SELECT count(*) AS n FROM telemetry WHERE life_id = 2")[0]["n"] == 1
 
 

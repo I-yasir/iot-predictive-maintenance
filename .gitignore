@@ -32,3 +32,8 @@ iot/esp32/.pio/
 iot/esp32/.pio/
 .hypothesis/
 .coverage
+frontend/node_modules/
+frontend/dist/
+frontend/test-results/
+frontend/playwright-report/
+frontend/*.tsbuildinfo

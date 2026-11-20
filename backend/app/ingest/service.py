@@ -519,7 +519,8 @@ PRED_COLS = ("asset_id", "life_id", "cycle", "created_at", "model_version", "sta
 JSON_COLS = frozenset({"settings", "sensors", "meta", "contributors", "subsystem_scores"})
 UPDATE_ASSETS = text("""
 UPDATE assets AS t SET state = u.state, last_seen_at = u.seen, life_id = u.life, expected_interval_s = u.interval,
-       last_cycle = COALESCE(u.adv, t.last_cycle), true_rul_at_end = COALESCE(u.true_end, t.true_rul_at_end)
+       last_cycle = COALESCE(u.adv, t.last_cycle), true_rul_at_end = CASE WHEN u.life <> t.life_id THEN u.true_end
+                                                     ELSE COALESCE(u.true_end, t.true_rul_at_end) END
 FROM unnest(CAST(:a AS text[]), CAST(:state AS text[]), CAST(:seen AS timestamptz[]), CAST(:life AS int[]),
             CAST(:interval AS real[]), CAST(:adv AS int[]), CAST(:true_end AS int[]))
      AS u(a, state, seen, life, interval, adv, true_end)

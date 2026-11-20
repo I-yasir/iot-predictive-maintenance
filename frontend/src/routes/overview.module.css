@@ -1,0 +1,33 @@
+.kpis { display: grid; gap: var(--space-3); grid-template-columns: repeat(5, minmax(0, 1fr)); }
+@media (max-width: 1023px) { .kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); } .kpis > :first-child { grid-column: 1 / -1; } }
+@media (max-width: 599px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.filters { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: end; }
+.filters label { min-width: 120px; }
+.filters .search { flex: 1 1 200px; }
+.layout { display: grid; gap: var(--space-4); grid-template-columns: 1fr; align-items: start; }
+@media (min-width: 1024px) { .layout { grid-template-columns: minmax(0, 8fr) minmax(280px, 4fr); } }
+.grid { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+@media (max-width: 599px) { .grid { grid-template-columns: 1fr; } }
+@media (min-width: 1440px) { .grid { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); } }
+.side { display: grid; gap: var(--space-4); }
+.lowest { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.lowest a { display: grid; grid-template-columns: 1fr auto; gap: 2px var(--space-2); color: inherit; text-decoration: none; padding: var(--space-1); border-radius: var(--radius-sm); }
+.lowest a:hover { background: var(--surface-2); }
+.lowTrack { grid-column: 1 / -1; position: relative; height: 8px; background: var(--surface-2); border-radius: 4px; }
+.lowBand { position: absolute; top: 0; bottom: 0; background: var(--viz-1); opacity: 0.3; border-radius: 4px; }
+.lowPoint { position: absolute; top: -2px; width: 3px; height: 12px; background: var(--viz-1); border-radius: 2px; }
+.feed { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; max-height: 520px; overflow: auto; }
+.feedItem { display: grid; grid-template-columns: 1fr auto; gap: var(--space-1) var(--space-2); align-items: center; padding: var(--space-2); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.feedItem a { color: inherit; text-decoration: none; display: grid; gap: 2px; }
+.feedItem a:hover .feedTitle { text-decoration: underline; }
+.feedTitle { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; }
+.acked { opacity: 0.6; }
+.tableWrap { overflow: auto; max-height: 70vh; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-1); }
+.tableWrap tr { height: 44px; }
+.tableWrap tbody tr { cursor: pointer; }
+.tableWrap tbody tr:hover, .tableWrap tbody tr:focus-visible { background: var(--surface-2); }
+.sortBtn { background: none; border: none; padding: 0; min-height: auto; font: inherit; color: inherit; font-weight: 600; }
+.cards { display: grid; gap: var(--space-2); }
+.hist { display: flex; align-items: end; gap: 2px; height: 120px; }
+.histBar { flex: 1; min-width: 6px; border-radius: 2px 2px 0 0; position: relative; }
+.histAxis { display: flex; justify-content: space-between; font: var(--type-small); color: var(--text-secondary); }

@@ -91,3 +91,29 @@ def test_websocket_requires_login(client: TestClient) -> None:
         raise AssertionError("expected close")
     except Exception as e:
         assert "4401" in repr(e) or "WebSocketDisconnect" in type(e).__name__
+
+
+def test_sensor_history_and_evaluation(client: TestClient) -> None:
+    from conftest import post, replay_msgs
+    msgs = replay_msgs("FD001", [34])
+    for m in msgs[:30]:
+        post(client, m)
+    d = client.get("/api/v1/assets/FD001-T034/sensors?limit=25").json()
+    assert len(d["items"]) == 25 and d["baseline_source"] == "asset"
+    assert len(d["sensors"]) == 21 and "T50" in d["model_sensors"] and "T2" in d["constant_sensors"]
+    row = d["items"][-1]
+    assert set(row["dev_z"]) == set(d["model_sensors"]) and row["raw"]["T50"] > 0
+    lo, hi = row["band"]["T50"]
+    assert lo < hi
+    first = client.get("/api/v1/assets/FD001-T034/sensors?limit=30").json()["items"][:20]
+    assert sum(abs(r["dev_z"]["T50"]) > 3 for r in first) <= 1  # baseline cycles sit inside their own band
+    ev = client.get("/api/v1/evaluation").json()
+    fd1 = next(x for x in ev["items"] if x["profile"] == "FD001")
+    assert fd1["rmse"] > 0 and sum(map(sum, fd1["confusion"].values())) == fd1["n"]
+
+
+def test_dead_letter_viewer(client: TestClient) -> None:
+    from conftest import post
+    post(client, b"{not json")
+    d = client.get("/api/v1/dead-letter?limit=5").json()["items"]
+    assert d and d[0]["reason"] and d[0]["raw"].startswith("{not json") and d[0]["raw_truncated"] is False

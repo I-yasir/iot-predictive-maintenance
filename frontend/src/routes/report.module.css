@@ -1,0 +1,18 @@
+.page { max-width: 210mm; margin: 0 auto; padding: 16mm 14mm; background: #fff; color: #151a21; display: grid; gap: 16px; font: var(--type-body); }
+.page h1 { font: var(--type-h1); }
+.page h2 { font: var(--type-h2); border-bottom: 1px solid #d5dae1; padding-bottom: 4px; }
+.head { display: flex; justify-content: space-between; gap: 16px; align-items: start; }
+.nums { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.num { border: 1px solid #d5dae1; border-radius: 8px; padding: 8px 12px; }
+.num strong { display: block; font: var(--type-h1); font-variant-numeric: tabular-nums; }
+.page table { font-size: 12px; }
+.page th { background: #fff; color: #4f5b6b; }
+.page th, .page td { border-bottom: 1px solid #d5dae1; padding: 4px 8px; }
+.foot { font-size: 11px; color: #4f5b6b; border-top: 1px solid #d5dae1; padding-top: 8px; }
+.toolbar { display: flex; gap: 8px; justify-content: flex-end; }
+@media print {
+  .toolbar { display: none; }
+  .page { padding: 0; max-width: none; }
+  @page { size: A4; margin: 14mm; }
+  .page section { break-inside: avoid; }
+}

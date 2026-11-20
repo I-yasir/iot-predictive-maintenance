@@ -1,0 +1,49 @@
+{
+  "meta": {
+    "generated": "2026-11-20T07:36:51+00:00",
+    "mode": "virtual ESP32",
+    "asset": "FD001-V001",
+    "site": "lab",
+    "rate_hz": 5.0,
+    "count": 400,
+    "faults": "none",
+    "generator_mode": "trajectory",
+    "seed": 12345
+  },
+  "checks": [
+    {
+      "check": "schema",
+      "ok": true,
+      "detail": "400 accepted, 0 rejected ({}), 0 of those were injected"
+    },
+    {
+      "check": "rate",
+      "ok": true,
+      "detail": "observed 5.0 msg/s vs configured 5.0"
+    },
+    {
+      "check": "sequence",
+      "ok": true,
+      "detail": "no permanent gaps"
+    },
+    {
+      "check": "latency",
+      "ok": true,
+      "detail": "{\"p50\": 1.6, \"p95\": 2.6, \"max\": 5.1}"
+    },
+    {
+      "check": "acks",
+      "ok": false,
+      "detail": "800 accepted acks for 400 accepted (+0 duplicates, which the stub does not de-duplicate)"
+    }
+  ],
+  "injected": [],
+  "rejected": {},
+  "late": [],
+  "latency_ms": {
+    "p50": 1.6,
+    "p95": 2.6,
+    "max": 5.1
+  },
+  "rate_hz": 5.0
+}
