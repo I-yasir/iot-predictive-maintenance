@@ -1,0 +1,69 @@
+# 06 — Implementation Plan
+
+Atomic, dependency-ordered checklist. Rules:
+- Do steps in order unless a step says it can run in parallel.
+- A step is done only when its **Done when** check passes. Then tick `[x]`, add the date and a one-line note (deviation, metric, file), and update `04_TRD.md` / `05_ML_and_Data_Spec.md` if anything learned changes them.
+- IDs (P1.3 etc.) are referenced from commits and PRs.
+
+Status legend: `[ ]` todo · `[x]` done · `[~]` in progress · `[!]` blocked (write why).
+
+---
+
+## Phase 0 — Context Architecture
+- [x] P0.1 Inspect `Dataset/` (readme, PDF, 12 data files) and record findings — 2026-11-20, see `05` §1–3, §11.
+- [x] P0.2 Write `docs/01`–`06` and root `CLAUDE.md` — 2026-11-20.
+- [x] P0.3 Owner review of docs — 2026-11-20, owner approved: move dataset, keep default alert thresholds (75/30), publish as public GitHub repo. Q1 (MQTT TLS) still open, default stands.
+- [x] P0.4 Documented exploratory notebook `ml/notebooks/01_data_audit_and_baseline.ipynb` (audit, EDA, causal features, grouped CV, baseline vs. LightGBM, official test eval) — 2026-11-20. FD001/FD003 test RMSE 12.6 (targets met); FD002 24.1 / FD004 24.9 (miss by cap effect, see `05` §7.5.1).
+
+## Phase 1 — Data Audit, Schema & ML Training/Evaluation (`data/` → model artifacts)
+- [~] P1.1 (2026-11-20: git initialised; `Dataset/` moved to `data/raw/cmapss/`; checksums written and verified against the zip; `.gitignore` added. Remaining: folder scaffold.) Initialise git repo + scaffold folders per `04` §3; move `Dataset/*` → `data/raw/cmapss/` (keep zip); add `.gitignore` (interim/processed/artifacts/.env/config.h); record SHA-256 of every raw file in `data/reference/raw_checksums.txt`. **Done when:** checksums match the files extracted from `CMAPSSData.zip`.
+- [ ] P1.2 `ml/` package skeleton (`pyproject.toml` with `04` §2.2 pins, ruff, mypy, pytest). **Done when:** `uv run pytest` runs (0 tests) and `ruff check` passes.
+- [ ] P1.3 `pdm_ml.io` loader: raw → named DataFrame (`05` §3.1–3.2) + `data/reference/sensor_catalog.yaml`. Tests: 26 columns, row/unit counts per `05` §1, contiguous cycles, no NaN. **Done when:** tests pass for all 12 files.
+- [~] P1.4 (2026-11-20: notebook done and wrote a first `data/reference/data_audit.json`; `pipelines/audit.py` + profile YAMLs remaining.) `pipelines/audit.py` + `notebooks/01_data_audit_and_baseline.ipynb`: regenerate every number in `05` §1–3 into `data/reference/data_audit.json` (counts, lives, constant sensors, regimes, correlations, ranges, OOD counts); compute hard/soft validation ranges and write `config/profiles/FD00x.yaml`. **Done when:** JSON agrees with `05` (any difference → update `05` + note here).
+- [ ] P1.5 `pdm_ml.labels` (RUL, cap) + `pdm_ml.features` (regimes, per-regime scaler, EWM, window features, gating) as sklearn-compatible transformers. Tests: causality (features at cycle t unchanged when future rows are appended), identical output batch vs. streaming (row-by-row) for 3 units, regime count = 6 for FD002/FD004. **Done when:** tests pass.
+- [ ] P1.6 Grouped CV harness (`05` §6) + M0 Ridge baseline + M1 LightGBM grid + cap ablation {110,125,140} + sensor ablation (P15, farB for FD002/4). Log to `ml/reports/cv_{profile}.json`. **Done when:** CV report exists for all 4 profiles; chosen config recorded in `05` §7.
+- [ ] P1.7 Quantile models + split-conformal widening; diagnostics module (baselines, subsystem scores, `pred_contrib` contributions); drift reference stats. Tests: P10 ≤ pred ≤ P90; contributions sum ≈ prediction − base value. **Done when:** CV coverage 75–90 %.
+- [ ] P1.8 Final refit per profile + **one-time** official test evaluation (`pipelines/evaluate.py`): RMSE, NASA score, coverage, alert confusion, plots → `ml/reports/test_{profile}.md`. **Done when:** PRD §4.1 targets met (if not: record gap, try M1 tuning; M2 only with owner approval).
+- [ ] P1.9 Bundle writer (`04` §6) + `CURRENT` pointer + `model_card.json`; loader with manifest verification. **Done when:** load round-trip test passes and a tampered file is rejected.
+
+## Phase 2 — IoT Ingestion Contract, ESP32 Streamer & Replay Simulator
+- [ ] P2.1 `TelemetryPayload v1` Pydantic model (in `backend/app/schemas`, importable by `iot/`) + export `iot/contracts/telemetry_v1.schema.json`. Tests: valid examples pass; hypothesis fuzzing of missing/extra/NaN/out-of-range fields yields the exact reject reasons in `04` §5.3. **Done when:** tests pass, schema committed.
+- [ ] P2.2 Docker Compose with Mosquitto (auth + ACL) and TimescaleDB; `.env.example`. **Done when:** `make up` brings both healthy; anonymous publish is refused.
+- [ ] P2.3 Transport layer in `iot/simulator/transports` (MQTT QoS1 + HTTP with retry/backoff). **Done when:** integration test publishes 100 msgs to broker and a test subscriber receives 100.
+- [ ] P2.4 Replay simulator `iot/simulator/replay.py` (Mode 1): profile/split/units/speed/loop, round-robin interleaving, asset ID scheme, ground-truth post, state machine `02` §4, CLI. **Done when:** replaying FD001 test unit 34 emits exactly its 13x rows in order with correct `cycle`, verified by test subscriber.
+- [ ] P2.5 `export_esp32_profile.py` → `iot/esp32/include/profile_fd001.h` (trajectory + distribution params, `05` §10). **Done when:** header compiles in a host C++ test and re-parsed values equal the source trajectory.
+- [ ] P2.6 ESP32 firmware `iot/esp32/src/main.cpp`: config, Wi-Fi with backoff, NTP, MQTT (buffer 1024, LWT status topic), HTTP fallback, ring buffer, payload builder (ArduinoJson), TRAJECTORY + DISTRIBUTION modes, LED + serial logs, state machine `02` §5. **Done when:** `pio run` builds with no warnings; on hardware, serial shows STREAMING and messages arrive at broker (if no board: build-only, mark hardware check pending in P5.4).
+- [ ] P2.7 Virtual ESP32 `iot/simulator/virtual_esp32.py` producing byte-identical payloads from the same profile header data, including fault-injection switches (malformed JSON, missing field, out-of-range, Wi-Fi drop simulation, duplicate, out-of-order). **Done when:** payload JSON from virtual device validates against schema and matches a recorded ESP32 serial dump field-for-field (keys/types).
+- [ ] P2.8 Mode 2 harness `iot/harness/mode2_harness.py`: subscribe to telemetry + ack topics; check schema, rate, seq gaps, latency, reconnect time; run fault injection via virtual device; emit `reports/mode2_{timestamp}.md` pass/fail. **Done when:** harness passes against the virtual device with backend stubbed by an echo-ack script.
+- [ ] P2.9 `iot/esp32/README.md`: flashing (PlatformIO + Arduino IDE), `config.h` setup, broker user creation, troubleshooting.
+
+## Phase 3 — Backend API & Real-Time Inference Service
+- [ ] P3.1 FastAPI app factory, settings, structured logging, `/healthz`, `/readyz`, `/metrics`. **Done when:** app starts; readyz fails without DB/model, passes with them.
+- [ ] P3.2 DB models + Alembic migration implementing `05` §9 (hypertables, retention). **Done when:** `alembic upgrade head` on fresh TimescaleDB succeeds; downgrade works.
+- [ ] P3.3 Model registry: load `CURRENT` bundle per active profile at startup, verify manifest, fail fast. **Done when:** tests cover missing/corrupt bundle.
+- [ ] P3.4 Ingest: HTTP `/ingest` + `/ingest/batch` (API key, size limit, rate limit), MQTT subscriber (paho, reconnect), validator, dedupe/order/gap logic, dead-letter, asset auto-register, life restart detection. **Done when:** tests for every row of `02` §8 pass.
+- [ ] P3.5 Inference service: per-asset buffer using `pdm_ml.features` streaming API; prediction + intervals + diagnostics + flags (`05` §8). **Done when:** for 3 FD001 test units, online predictions at the last cycle equal offline `evaluate.py` predictions within 1e-6.
+- [ ] P3.6 Alert engine: state machine + hysteresis + safety override + offline watchdog + DEGRADED_DATA (`02` §3); alerts persisted; ack endpoint. **Done when:** table-driven tests of all transitions pass.
+- [ ] P3.7 REST API (`04` §5.4) + WebSocket hub (`04` §5.5) with session-cookie auth for dashboard. **Done when:** OpenAPI generated; WS test receives prediction event within 500 ms of ingest.
+- [ ] P3.8 In-process replay controller `/sim/replay/*` wrapping P2.4; `/devices` + `/devices/{id}/harness-check` reusing P2.8 checks. **Done when:** API test starts/pauses/stops a replay.
+- [ ] P3.9 Performance test: 500 msg/s replay for 5 min, record p95 latency and memory. **Done when:** `04` §8 NFRs met (log results here).
+
+## Phase 4 — Frontend Dashboard (overview + component detail report)
+- [ ] P4.1 Vite + React + TS scaffold with `04` §2.4 pins, ESLint, vitest; `tokens.css` from `03` §1 (dark + light). **Done when:** token story page renders all state colors with contrast check passing (≥ 4.5:1).
+- [ ] P4.2 API client + zod schemas + WS client with reconnect/backoff and REST resync; global connection indicator. **Done when:** unit tests for reconnect states.
+- [ ] P4.3 App shell, routes (`02` §6), login page, error boundary, 404.
+- [ ] P4.4 Shared UI: StateChip, SourceBadge, AssetTile, Sparkline, HealthGauge, skeletons, empty/offline/degraded/warming states (`02` §7).
+- [ ] P4.5 Chart components: RulTrendChart, SensorTrendChart, SubsystemBar, ContributionList, each with data-table fallback (`03` §3.2).
+- [ ] P4.6 System Overview: KPIs, filters (URL-synced), grid/table, lowest-RUL list, live alert feed with ack. **Done when:** US-01…US-04 ACs pass in component tests with mocked API.
+- [ ] P4.7 Component Detail Report: selector, 5 tabs, ground-truth error card, export JSON, printable report route. **Done when:** US-05…US-09 ACs pass.
+- [ ] P4.8 Test & Simulation page: replay controls, batch results, ESP32 devices panel, ingest health. **Done when:** US-10, US-13 UI flows work against the real backend.
+- [ ] P4.9 Responsive + a11y pass at 375 / 768 / 1280 / 1920 px; keyboard nav; reduced motion. **Done when:** Playwright screenshots reviewed; axe-core reports 0 serious violations.
+
+## Phase 5 — End-to-End Verification
+- [ ] P5.1 **Mode 1 batch**: `make evaluate` over all 4 official test sets via the backend ingest path (batch endpoint) → metrics equal P1.8 offline metrics. **Done when:** identical within rounding.
+- [ ] P5.2 **Mode 1 stream**: Playwright E2E — start FD001 test replay of 10 units at 20 cps from `/test`; assert tiles appear, states change, at least one Critical alert for a unit with true RUL ≤ 30, detail view shows predicted vs. true RUL. **Done when:** E2E green in CI.
+- [ ] P5.3 **Mode 2 virtual**: harness + virtual ESP32 against full stack, including all fault injections; dashboard shows `VIRTUAL_ESP32` asset updating. **Done when:** harness report all-pass.
+- [ ] P5.4 **Mode 2 hardware**: flash ESP32, stream 30 min at 1 msg/s on lab Wi-Fi; power-cycle AP mid-run; harness report: ≥ 99 % delivery, reconnect ≤ 10 s, p95 device→dashboard ≤ 2 s. **Done when:** report saved to `tests/e2e/reports/`; if no board available mark `[!]` with reason.
+- [ ] P5.5 Edge/failure cases: backend restart mid-replay (no data loss with QoS 1), DB down (503 + recovery), broker down (HTTP fallback), duplicate & out-of-order cycles, unit restart (new life), 19-cycle short unit (FD004), OOD values, offline detection, WS disconnect in UI. **Done when:** each case has an automated test or a recorded manual check here.
+- [ ] P5.6 Alert-quality and calibration check on replay results vs. PRD §4.1; tune `config/alerts.yaml` if needed and update `05` §8. **Done when:** targets met or gaps documented.
+- [ ] P5.7 README quick-start (`make up && make replay`), demo script, MVP sign-off checklist against PRD user stories.

@@ -1,0 +1,674 @@
+{
+  "generated_by": "ml/notebooks/01_data_audit_and_baseline.ipynb",
+  "library_versions": {
+    "pandas": "2.3.3",
+    "numpy": "2.2.6",
+    "sklearn": "1.6.1",
+    "lightgbm": "4.6.0"
+  },
+  "files": {
+    "RUL_FD001.txt": "a19c8ec94931949d0485bdc35118206e9c81c4547b422efb9cf86f4ceddbceca",
+    "RUL_FD002.txt": "c851dd96a6ea6998d3c4a8f834d3c8013aa90e93a6ed950dc826ad0655b2906b",
+    "RUL_FD003.txt": "df1e0566306b174a2de41c67a3e7a51877889598b78643fc3e5685259091b7cb",
+    "RUL_FD004.txt": "196b836b85a95ac7fdbbf29c5fdf1657382eafa445644d114ffaaf50dc2975e1",
+    "readme.txt": "4f5270554b775c67e73aff383c5436fd329d6e4cc3d3a116913276fae511269b",
+    "test_FD001.txt": "3cda7109ce17bafb5443f2ac926cfcf88154b941b8c4cf95eb55d1ddd6f52851",
+    "test_FD002.txt": "de7b5bf7e998a985c378488480528b7c02cff1406a46740def362dda8d9b4e02",
+    "test_FD003.txt": "299babd63c8d987cef079c4a425429f33b3a34797d803bbe2ad48c29dbd0d790",
+    "test_FD004.txt": "1dc675fff0624bac10786927c6715b37d1297657137400d2b1a3138d777a3ba5",
+    "train_FD001.txt": "963b5e22825b34d8b21c69e1aeb4af3e647050eb672ee8834ba4b5d91d2de0f8",
+    "train_FD002.txt": "dac6c4dbc4e7c1bdeb5747da3d313d05c395bb99801b44a002b26a2ba13d788f",
+    "train_FD003.txt": "2abbe9968cc5e8eb091980f51b20f62bb4127336d3482cb52071d53bf23329e2",
+    "train_FD004.txt": "27ef6160b6a1dcb2613a88de9c239f763b223f02cdc41dc5cdedc5dc189b6218"
+  },
+  "quirks": [
+    "readme lists 26 sensors; files contain 21 sensors (26 columns total)",
+    "readme FD004 train/test counts swapped: actual 249 train, 248 test units",
+    "rows have trailing whitespace; parse with sep=r'\\s+'"
+  ],
+  "profiles": {
+    "FD001": {
+      "train_rows": 20631,
+      "test_rows": 13096,
+      "train_units": 100,
+      "test_units": 100,
+      "train_life": {
+        "min": 128,
+        "median": 199.0,
+        "max": 362
+      },
+      "test_length": {
+        "min": 31,
+        "median": 133.5,
+        "max": 303
+      },
+      "true_test_rul": {
+        "min": 7,
+        "median": 86.0,
+        "max": 145
+      },
+      "constant_sensors": [
+        "T2",
+        "P2",
+        "epr",
+        "farB",
+        "Nf_dmd",
+        "PCNfR_dmd"
+      ],
+      "model_inputs": [
+        "T24",
+        "T30",
+        "T50",
+        "P30",
+        "Nf",
+        "Nc",
+        "Ps30",
+        "phi",
+        "NRf",
+        "NRc",
+        "BPR",
+        "htBleed",
+        "W31",
+        "W32"
+      ],
+      "sensor_ranges": {
+        "T2": {
+          "min": 518.67,
+          "max": 518.67
+        },
+        "T24": {
+          "min": 641.21,
+          "max": 644.53
+        },
+        "T30": {
+          "min": 1571.04,
+          "max": 1616.91
+        },
+        "T50": {
+          "min": 1382.25,
+          "max": 1441.49
+        },
+        "P2": {
+          "min": 14.62,
+          "max": 14.62
+        },
+        "P15": {
+          "min": 21.6,
+          "max": 21.61
+        },
+        "P30": {
+          "min": 549.85,
+          "max": 556.06
+        },
+        "Nf": {
+          "min": 2387.9,
+          "max": 2388.56
+        },
+        "Nc": {
+          "min": 9021.73,
+          "max": 9244.59
+        },
+        "epr": {
+          "min": 1.3,
+          "max": 1.3
+        },
+        "Ps30": {
+          "min": 46.85,
+          "max": 48.53
+        },
+        "phi": {
+          "min": 518.69,
+          "max": 523.38
+        },
+        "NRf": {
+          "min": 2387.88,
+          "max": 2388.56
+        },
+        "NRc": {
+          "min": 8099.94,
+          "max": 8293.72
+        },
+        "BPR": {
+          "min": 8.3249,
+          "max": 8.5848
+        },
+        "farB": {
+          "min": 0.03,
+          "max": 0.03
+        },
+        "htBleed": {
+          "min": 388.0,
+          "max": 400.0
+        },
+        "Nf_dmd": {
+          "min": 2388.0,
+          "max": 2388.0
+        },
+        "PCNfR_dmd": {
+          "min": 100.0,
+          "max": 100.0
+        },
+        "W31": {
+          "min": 38.14,
+          "max": 39.43
+        },
+        "W32": {
+          "min": 22.8942,
+          "max": 23.6184
+        }
+      },
+      "corr_with_capped_rul": {
+        "T2": null,
+        "T24": -0.68,
+        "T30": -0.66,
+        "T50": -0.76,
+        "P2": null,
+        "P15": -0.11,
+        "P30": 0.73,
+        "Nf": -0.62,
+        "Nc": -0.46,
+        "epr": null,
+        "Ps30": -0.78,
+        "phi": 0.75,
+        "NRf": -0.62,
+        "NRc": -0.37,
+        "BPR": -0.72,
+        "farB": null,
+        "htBleed": -0.68,
+        "Nf_dmd": null,
+        "PCNfR_dmd": null,
+        "W31": 0.7,
+        "W32": 0.71
+      },
+      "cv_rmse": {
+        "ridge": 17.166037551713753,
+        "lightgbm": 10.516532469623296
+      },
+      "test_metrics": {
+        "LightGBM RMSE": 12.612721144329539,
+        "Ridge RMSE": 17.208643608856494,
+        "NASA score": 206.51677040155985,
+        "P10\u2013P90 coverage": 0.69
+      }
+    },
+    "FD002": {
+      "train_rows": 53759,
+      "test_rows": 33991,
+      "train_units": 260,
+      "test_units": 259,
+      "train_life": {
+        "min": 128,
+        "median": 199.0,
+        "max": 378
+      },
+      "test_length": {
+        "min": 21,
+        "median": 132.0,
+        "max": 367
+      },
+      "true_test_rul": {
+        "min": 6,
+        "median": 80.0,
+        "max": 194
+      },
+      "constant_sensors": [],
+      "model_inputs": [
+        "T24",
+        "T30",
+        "T50",
+        "P30",
+        "Nf",
+        "Nc",
+        "Ps30",
+        "phi",
+        "NRf",
+        "NRc",
+        "BPR",
+        "htBleed",
+        "W31",
+        "W32"
+      ],
+      "sensor_ranges": {
+        "T2": {
+          "min": 445.0,
+          "max": 518.67
+        },
+        "T24": {
+          "min": 535.53,
+          "max": 644.52
+        },
+        "T30": {
+          "min": 1243.73,
+          "max": 1612.88
+        },
+        "T50": {
+          "min": 1023.77,
+          "max": 1439.23
+        },
+        "P2": {
+          "min": 3.91,
+          "max": 14.62
+        },
+        "P15": {
+          "min": 5.71,
+          "max": 21.61
+        },
+        "P30": {
+          "min": 136.8,
+          "max": 555.82
+        },
+        "Nf": {
+          "min": 1914.77,
+          "max": 2388.39
+        },
+        "Nc": {
+          "min": 7985.56,
+          "max": 9215.66
+        },
+        "epr": {
+          "min": 0.93,
+          "max": 1.3
+        },
+        "Ps30": {
+          "min": 36.23,
+          "max": 48.51
+        },
+        "phi": {
+          "min": 129.12,
+          "max": 523.37
+        },
+        "NRf": {
+          "min": 2027.61,
+          "max": 2390.48
+        },
+        "NRc": {
+          "min": 7848.36,
+          "max": 8268.5
+        },
+        "BPR": {
+          "min": 8.3357,
+          "max": 11.0669
+        },
+        "farB": {
+          "min": 0.02,
+          "max": 0.03
+        },
+        "htBleed": {
+          "min": 303.0,
+          "max": 399.0
+        },
+        "Nf_dmd": {
+          "min": 1915.0,
+          "max": 2388.0
+        },
+        "PCNfR_dmd": {
+          "min": 84.93,
+          "max": 100.0
+        },
+        "W31": {
+          "min": 10.18,
+          "max": 39.34
+        },
+        "W32": {
+          "min": 6.0105,
+          "max": 23.5901
+        }
+      },
+      "corr_with_capped_rul": {
+        "T2": null,
+        "T24": -0.63,
+        "T30": -0.62,
+        "T50": -0.74,
+        "P2": null,
+        "P15": -0.36,
+        "P30": 0.51,
+        "Nf": -0.48,
+        "Nc": -0.42,
+        "epr": 0.04,
+        "Ps30": -0.77,
+        "phi": 0.53,
+        "NRf": -0.48,
+        "NRc": -0.32,
+        "BPR": -0.72,
+        "farB": -0.67,
+        "htBleed": -0.65,
+        "Nf_dmd": null,
+        "PCNfR_dmd": null,
+        "W31": 0.48,
+        "W32": 0.48
+      },
+      "cv_rmse": {
+        "ridge": 17.530346404120124,
+        "lightgbm": 12.181520980802759
+      },
+      "test_metrics": {
+        "LightGBM RMSE": 24.094747466008126,
+        "Ridge RMSE": 27.904505899028834,
+        "NASA score": 6616.354143579989,
+        "P10\u2013P90 coverage": 0.6563706563706564
+      }
+    },
+    "FD003": {
+      "train_rows": 24720,
+      "test_rows": 16596,
+      "train_units": 100,
+      "test_units": 100,
+      "train_life": {
+        "min": 145,
+        "median": 220.5,
+        "max": 525
+      },
+      "test_length": {
+        "min": 38,
+        "median": 148.0,
+        "max": 475
+      },
+      "true_test_rul": {
+        "min": 6,
+        "median": 77.5,
+        "max": 145
+      },
+      "constant_sensors": [
+        "T2",
+        "P2",
+        "farB",
+        "Nf_dmd",
+        "PCNfR_dmd"
+      ],
+      "model_inputs": [
+        "T24",
+        "T30",
+        "T50",
+        "P30",
+        "Nf",
+        "Nc",
+        "Ps30",
+        "phi",
+        "NRf",
+        "NRc",
+        "BPR",
+        "htBleed",
+        "W31",
+        "W32",
+        "epr"
+      ],
+      "sensor_ranges": {
+        "T2": {
+          "min": 518.67,
+          "max": 518.67
+        },
+        "T24": {
+          "min": 640.84,
+          "max": 645.11
+        },
+        "T30": {
+          "min": 1564.3,
+          "max": 1615.39
+        },
+        "T50": {
+          "min": 1377.06,
+          "max": 1441.16
+        },
+        "P2": {
+          "min": 14.62,
+          "max": 14.62
+        },
+        "P15": {
+          "min": 21.45,
+          "max": 21.61
+        },
+        "P30": {
+          "min": 549.61,
+          "max": 570.49
+        },
+        "Nf": {
+          "min": 2386.9,
+          "max": 2388.6
+        },
+        "Nc": {
+          "min": 9017.98,
+          "max": 9234.35
+        },
+        "epr": {
+          "min": 1.29,
+          "max": 1.32
+        },
+        "Ps30": {
+          "min": 46.69,
+          "max": 48.44
+        },
+        "phi": {
+          "min": 517.77,
+          "max": 537.4
+        },
+        "NRf": {
+          "min": 2386.93,
+          "max": 2388.61
+        },
+        "NRc": {
+          "min": 8099.68,
+          "max": 8290.55
+        },
+        "BPR": {
+          "min": 8.1563,
+          "max": 8.5705
+        },
+        "farB": {
+          "min": 0.03,
+          "max": 0.03
+        },
+        "htBleed": {
+          "min": 388.0,
+          "max": 399.0
+        },
+        "Nf_dmd": {
+          "min": 2388.0,
+          "max": 2388.0
+        },
+        "PCNfR_dmd": {
+          "min": 100.0,
+          "max": 100.0
+        },
+        "W31": {
+          "min": 38.17,
+          "max": 39.85
+        },
+        "W32": {
+          "min": 22.8726,
+          "max": 23.9505
+        }
+      },
+      "corr_with_capped_rul": {
+        "T2": null,
+        "T24": -0.68,
+        "T30": -0.7,
+        "T50": -0.77,
+        "P2": null,
+        "P15": -0.1,
+        "P30": -0.36,
+        "Nf": -0.63,
+        "Nc": -0.64,
+        "epr": -0.49,
+        "Ps30": -0.8,
+        "phi": -0.37,
+        "NRf": -0.63,
+        "NRc": -0.56,
+        "BPR": -0.0,
+        "farB": null,
+        "htBleed": -0.73,
+        "Nf_dmd": null,
+        "PCNfR_dmd": null,
+        "W31": 0.05,
+        "W32": 0.04
+      },
+      "cv_rmse": {
+        "ridge": 16.321092796740558,
+        "lightgbm": 10.39870220670393
+      },
+      "test_metrics": {
+        "LightGBM RMSE": 12.63030792081548,
+        "Ridge RMSE": 16.794999275012884,
+        "NASA score": 275.520642095918,
+        "P10\u2013P90 coverage": 0.56
+      }
+    },
+    "FD004": {
+      "train_rows": 61249,
+      "test_rows": 41214,
+      "train_units": 249,
+      "test_units": 248,
+      "train_life": {
+        "min": 128,
+        "median": 234.0,
+        "max": 543
+      },
+      "test_length": {
+        "min": 19,
+        "median": 153.5,
+        "max": 486
+      },
+      "true_test_rul": {
+        "min": 6,
+        "median": 88.0,
+        "max": 195
+      },
+      "constant_sensors": [],
+      "model_inputs": [
+        "T24",
+        "T30",
+        "T50",
+        "P30",
+        "Nf",
+        "Nc",
+        "Ps30",
+        "phi",
+        "NRf",
+        "NRc",
+        "BPR",
+        "htBleed",
+        "W31",
+        "W32",
+        "epr"
+      ],
+      "sensor_ranges": {
+        "T2": {
+          "min": 445.0,
+          "max": 518.67
+        },
+        "T24": {
+          "min": 535.48,
+          "max": 644.42
+        },
+        "T30": {
+          "min": 1242.67,
+          "max": 1613.0
+        },
+        "T50": {
+          "min": 1024.42,
+          "max": 1440.77
+        },
+        "P2": {
+          "min": 3.91,
+          "max": 14.62
+        },
+        "P15": {
+          "min": 5.67,
+          "max": 21.61
+        },
+        "P30": {
+          "min": 136.17,
+          "max": 570.81
+        },
+        "Nf": {
+          "min": 1914.72,
+          "max": 2388.64
+        },
+        "Nc": {
+          "min": 7984.51,
+          "max": 9196.81
+        },
+        "epr": {
+          "min": 0.93,
+          "max": 1.32
+        },
+        "Ps30": {
+          "min": 36.04,
+          "max": 48.36
+        },
+        "phi": {
+          "min": 128.31,
+          "max": 537.49
+        },
+        "NRf": {
+          "min": 2027.57,
+          "max": 2390.49
+        },
+        "NRc": {
+          "min": 7845.78,
+          "max": 8261.65
+        },
+        "BPR": {
+          "min": 8.1757,
+          "max": 11.0663
+        },
+        "farB": {
+          "min": 0.02,
+          "max": 0.03
+        },
+        "htBleed": {
+          "min": 302.0,
+          "max": 399.0
+        },
+        "Nf_dmd": {
+          "min": 1915.0,
+          "max": 2388.0
+        },
+        "PCNfR_dmd": {
+          "min": 84.93,
+          "max": 100.0
+        },
+        "W31": {
+          "min": 10.16,
+          "max": 39.89
+        },
+        "W32": {
+          "min": 6.0843,
+          "max": 23.8852
+        }
+      },
+      "corr_with_capped_rul": {
+        "T2": null,
+        "T24": -0.58,
+        "T30": -0.65,
+        "T50": -0.72,
+        "P2": null,
+        "P15": -0.12,
+        "P30": -0.34,
+        "Nf": -0.57,
+        "Nc": -0.62,
+        "epr": -0.36,
+        "Ps30": -0.76,
+        "phi": -0.36,
+        "NRf": -0.57,
+        "NRc": -0.55,
+        "BPR": 0.02,
+        "farB": -0.34,
+        "htBleed": -0.67,
+        "Nf_dmd": null,
+        "PCNfR_dmd": null,
+        "W31": 0.02,
+        "W32": 0.03
+      },
+      "cv_rmse": {
+        "ridge": 18.002412892262445,
+        "lightgbm": 13.655737639483174
+      },
+      "test_metrics": {
+        "LightGBM RMSE": 24.940954959593522,
+        "Ridge RMSE": 29.2842992365438,
+        "NASA score": 4050.0702395665685,
+        "P10\u2013P90 coverage": 0.5725806451612904
+      }
+    }
+  }
+}

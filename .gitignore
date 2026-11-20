@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.ipynb_checkpoints/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Generated data & models (raw data in data/raw is committed)
+data/interim/
+data/processed/
+ml/artifacts/**
+!ml/artifacts/**/model_card.json
+ml/reports/*.png
+
+# Secrets & local config
+.env
+iot/esp32/include/config.h
+config/mosquitto/passwd
+
+# Node / frontend
+node_modules/
+frontend/dist/
+
+# Firmware build
+iot/esp32/.pio/
+
+# OS
+.DS_Store
