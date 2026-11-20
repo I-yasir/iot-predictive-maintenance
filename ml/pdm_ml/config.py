@@ -59,7 +59,8 @@ def find_root(start: Path | None = None) -> Path:
 
 
 def raw_dir() -> Path:
-    return Path(os.environ.get("DATA_RAW_DIR", find_root() / "data" / "raw" / "cmapss"))
+    p = Path(os.environ.get("DATA_RAW_DIR", "data/raw/cmapss"))
+    return p if p.is_absolute() else find_root() / p  # .env holds a repo-relative path
 
 
 def reference_dir() -> Path:
@@ -67,7 +68,8 @@ def reference_dir() -> Path:
 
 
 def artifacts_dir() -> Path:
-    return Path(os.environ.get("MODEL_ROOT", find_root() / "ml" / "artifacts"))
+    p = Path(os.environ.get("MODEL_ROOT", "ml/artifacts"))
+    return p if p.is_absolute() else find_root() / p
 
 
 def reports_dir() -> Path:

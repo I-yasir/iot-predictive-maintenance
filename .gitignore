@@ -27,3 +27,7 @@ iot/esp32/.pio/
 # OS
 .DS_Store
 *.egg-info/
+
+# PlatformIO build output
+iot/esp32/.pio/
+.hypothesis/

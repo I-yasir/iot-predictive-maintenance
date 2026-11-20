@@ -98,7 +98,7 @@ RUNNING ──ingest unreachable 3× (backoff 1s,2s,4s)──▶ ERROR ──ret
 ```
 
 `cfg = {profile, split: train|test, units: [ids]|"all"|N random, speed_cps, transport: mqtt|http, loop: bool, asset_prefix}`.
-Replay sends rows in cycle order; multiple units interleave round-robin per tick. Asset ID = `{profile}-{split[0].upper()}{unit:03d}` (e.g., `FD001-T034`). For test-split units the simulator also posts ground-truth RUL metadata (`true_rul_at_end`) to `/api/v1/assets/{id}/ground-truth` so the detail view can plot true vs. predicted RUL.
+Replay sends rows in cycle order; multiple units interleave round-robin per tick. Asset ID = `{profile}-T{unit:03d}` for test units (e.g., `FD001-T034`) and `{profile}-R{unit:03d}` for run-to-failure training units (`R`, not `T`, so the two splits never collide). Every replayed message carries the true RUL for that cycle in `meta.true_rul` (plus `meta.unit`, `meta.len`, `meta.eol`), so the detail view can plot true vs. predicted RUL without a separate call. *(Changed in P2.4: this replaces the earlier `POST /assets/{id}/ground-truth` design, which needed the backend to be up before a replay and could drift out of sync with the stream. The endpoint stays available for manual corrections.)*
 
 Controlled from the dashboard (Test page) via `/api/v1/sim/*` or from CLI (`python -m iot.simulator.replay ...`).
 

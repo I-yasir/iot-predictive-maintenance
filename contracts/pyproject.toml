@@ -1,0 +1,37 @@
+[project]
+name = "pdm-contracts"
+version = "1.0.0"
+description = "PdM-Live canonical telemetry contract (TelemetryPayload v1), shared by backend and iot"
+requires-python = ">=3.12,<3.13"
+dependencies = ["pydantic==2.11.5", "PyYAML==6.0.2"]
+
+[project.optional-dependencies]
+dev = ["pytest==8.4.0", "hypothesis==6.135.0", "ruff==0.11.13", "mypy==1.16.0"]
+
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["pdm_contracts*"]
+
+[tool.setuptools.package-data]
+pdm_contracts = ["py.typed"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+files = ["pdm_contracts"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

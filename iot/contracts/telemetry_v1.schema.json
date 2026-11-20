@@ -1,0 +1,124 @@
+{
+  "$defs": {
+    "Settings": {
+      "additionalProperties": false,
+      "properties": {
+        "setting_1": {
+          "title": "Setting 1",
+          "type": "number"
+        },
+        "setting_2": {
+          "title": "Setting 2",
+          "type": "number"
+        },
+        "setting_3": {
+          "title": "Setting 3",
+          "type": "number"
+        }
+      },
+      "required": [
+        "setting_1",
+        "setting_2",
+        "setting_3"
+      ],
+      "title": "Settings",
+      "type": "object"
+    },
+    "Source": {
+      "enum": [
+        "REPLAY",
+        "ESP32",
+        "VIRTUAL_ESP32",
+        "LIVE"
+      ],
+      "title": "Source",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "PdM-Live TelemetryPayload v1. Profile-specific required sensors and ranges are in config/profiles/{profile}.yaml and are enforced by the ingestion gateway.",
+  "properties": {
+    "schema_version": {
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "msg_id": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Msg Id",
+      "type": "string"
+    },
+    "site_id": {
+      "pattern": "^[A-Za-z0-9_-]{1,48}$",
+      "title": "Site Id",
+      "type": "string"
+    },
+    "asset_id": {
+      "pattern": "^[A-Za-z0-9_-]{1,48}$",
+      "title": "Asset Id",
+      "type": "string"
+    },
+    "profile": {
+      "pattern": "^[A-Za-z0-9_-]{1,48}$",
+      "title": "Profile",
+      "type": "string"
+    },
+    "source": {
+      "$ref": "#/$defs/Source"
+    },
+    "seq": {
+      "minimum": 0,
+      "title": "Seq",
+      "type": "integer"
+    },
+    "cycle": {
+      "minimum": 1,
+      "title": "Cycle",
+      "type": "integer"
+    },
+    "ts": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Ts"
+    },
+    "settings": {
+      "$ref": "#/$defs/Settings"
+    },
+    "sensors": {
+      "additionalProperties": {
+        "type": "number"
+      },
+      "title": "Sensors",
+      "type": "object"
+    },
+    "meta": {
+      "additionalProperties": true,
+      "title": "Meta",
+      "type": "object"
+    }
+  },
+  "required": [
+    "schema_version",
+    "msg_id",
+    "site_id",
+    "asset_id",
+    "profile",
+    "source",
+    "seq",
+    "cycle",
+    "settings",
+    "sensors"
+  ],
+  "title": "TelemetryPayload",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/I-yasir/iot-predictive-maintenance/iot/contracts/telemetry_v1.schema.json"
+}

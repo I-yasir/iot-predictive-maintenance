@@ -51,8 +51,9 @@ After finishing each step:
 make audit       # P1.4 — regenerate data_audit.json and profile configs
 make train       # P1.6–P1.9 — CV, final fit, bundles
 make evaluate    # official test evaluation / Mode 1 batch
-make up          # docker compose: mosquitto, db, backend, frontend
-make replay ARGS="--profile FD001 --split test --units 10 --speed 20"
+make up          # docker compose: mosquitto + db (backend/frontend join in Phase 3/4)
+make replay-demo # Mode 1: FD001 test unit 34 (or: pdm-replay --profile FD001 --split test --units 10 --speed 20)
 make harness     # Mode 2 harness against virtual ESP32 (or real board)
-make test        # all unit/integration tests
+make test        # ML tests; make test-iot for contracts + IoT (broker tests need make up)
+make esp32-build # PlatformIO build of iot/esp32 (flashing: iot/esp32/README.md)
 ```

@@ -1,0 +1,51 @@
+[project]
+name = "pdm-iot"
+version = "0.1.0"
+description = "PdM-Live IoT side: transports, dataset replay (Mode 1), virtual ESP32 + Mode 2 harness"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "pdm-contracts",
+    "pdm-ml",
+    "paho-mqtt==2.1.0",
+    "httpx==0.28.1",
+    "pyserial==3.5",
+]
+
+[project.optional-dependencies]
+dev = ["pytest==8.4.0", "ruff==0.11.13", "mypy==1.16.0"]
+
+[project.scripts]
+pdm-replay = "pdm_iot.simulator.replay:main"
+pdm-virtual-esp32 = "pdm_iot.simulator.virtual_esp32:main"
+pdm-harness = "pdm_iot.harness.mode2_harness:main"
+pdm-export-esp32-profile = "pdm_iot.esp32_profile:main"
+
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["pdm_iot*"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM"]
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["pdm_iot", "pdm_contracts", "pdm_ml"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+ignore_missing_imports = true
+disable_error_code = ["type-arg"]
+files = ["pdm_iot"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+markers = ["broker: needs a running Mosquitto on localhost:1883 (docker compose up mosquitto)"]

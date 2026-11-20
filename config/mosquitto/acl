@@ -1,0 +1,22 @@
+# PdM-Live MQTT ACL (docs/04 §7.2). Topic layout: pdm/v1/{site_id}/{asset_id}/{telemetry|status|ack}
+
+# Backend ingestion service: reads everything, writes acks
+user pdm-backend
+topic read pdm/v1/#
+topic write pdm/v1/+/+/ack
+
+# Dataset replay simulator (Mode 1) and virtual ESP32 (Mode 2b): publish for many assets
+user pdm-replay
+topic write pdm/v1/+/+/telemetry
+topic write pdm/v1/+/+/status
+topic read pdm/v1/+/+/ack
+
+# Mode 2 test harness: observe everything
+user pdm-harness
+topic read pdm/v1/#
+
+# Physical devices (ESP32): MQTT username MUST equal the asset_id, so a device can only
+# publish for itself and read its own acks.
+pattern write pdm/v1/+/%u/telemetry
+pattern write pdm/v1/+/%u/status
+pattern read pdm/v1/+/%u/ack

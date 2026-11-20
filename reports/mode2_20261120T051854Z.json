@@ -1,0 +1,110 @@
+{
+  "meta": {
+    "generated": "2026-11-20T05:18:54+00:00",
+    "mode": "virtual ESP32",
+    "asset": "FD001-V001",
+    "site": "lab",
+    "rate_hz": 10.0,
+    "count": 60,
+    "faults": "malformed@10,missing@20,range@30,duplicate@40,out_of_order@45,drop@50:3",
+    "generator_mode": "trajectory",
+    "seed": 12345
+  },
+  "checks": [
+    {
+      "check": "schema",
+      "ok": true,
+      "detail": "58 accepted, 4 rejected ({'parse_error': 1, 'schema:sensors.T30': 1, 'range:T30': 1, 'duplicate_msg_id': 1}), 3 of those were injected"
+    },
+    {
+      "check": "rate",
+      "ok": true,
+      "detail": "observed 10.31 msg/s vs configured 10.0"
+    },
+    {
+      "check": "sequence",
+      "ok": true,
+      "detail": "no permanent gaps (seq [10] unreadable by design)"
+    },
+    {
+      "check": "latency",
+      "ok": true,
+      "detail": "{\"p50\": 1.9, \"p95\": 32.3, \"max\": 302.2}"
+    },
+    {
+      "check": "fault:malformed@10",
+      "ok": true,
+      "detail": "expected parse_error, got 1 parse_error for 1 injected"
+    },
+    {
+      "check": "fault:missing@20",
+      "ok": true,
+      "detail": "expected schema:sensors.T30, got schema:sensors.T30"
+    },
+    {
+      "check": "fault:range@30",
+      "ok": true,
+      "detail": "expected range:T30, got range:T30"
+    },
+    {
+      "check": "fault:duplicate@40",
+      "ok": true,
+      "detail": "expected duplicate_msg_id, got 1 duplicate msg_id"
+    },
+    {
+      "check": "fault:out_of_order@45",
+      "ok": true,
+      "detail": "expected cycle_regression, got regressions at seq [45]"
+    },
+    {
+      "check": "fault:drop@50",
+      "ok": true,
+      "detail": "expected buffered_then_flushed, got 3 buffered and flushed, none lost; max latency 302.2 ms"
+    },
+    {
+      "check": "acks",
+      "ok": true,
+      "detail": "59 accepted acks for 58 accepted (+1 duplicates, which the stub does not de-duplicate)"
+    }
+  ],
+  "injected": [
+    {
+      "kind": "malformed",
+      "seq": 10
+    },
+    {
+      "kind": "missing",
+      "seq": 20
+    },
+    {
+      "kind": "range",
+      "seq": 30
+    },
+    {
+      "kind": "duplicate",
+      "seq": 40
+    },
+    {
+      "kind": "out_of_order",
+      "seq": 45
+    },
+    {
+      "kind": "drop",
+      "seq": 50,
+      "cycles": 3
+    }
+  ],
+  "rejected": {
+    "parse_error": 1,
+    "schema:sensors.T30": 1,
+    "range:T30": 1,
+    "duplicate_msg_id": 1
+  },
+  "late": [],
+  "latency_ms": {
+    "p50": 1.9,
+    "p95": 32.3,
+    "max": 302.2
+  },
+  "rate_hz": 10.31
+}

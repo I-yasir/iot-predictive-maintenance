@@ -1,0 +1,41 @@
+# PdM-Live single-host stack (docs/04 §1, §4). Phase 2: broker + database.
+# Backend and frontend services are added in Phases 3-4.
+name: pdm-live
+
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2.0.21
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./config/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./config/mosquitto/acl:/mosquitto/config/acl:ro
+      - ./config/mosquitto/passwd:/mosquitto/config/passwd:ro
+      - mosquitto-data:/mosquitto/data
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 1883"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  db:
+    image: timescale/timescaledb:2.20.0-pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-pdm}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-pdm}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pdm} -d ${POSTGRES_DB:-pdm}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  mosquitto-data:
+  pgdata:
