@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     mqtt_username: str = "pdm-backend"
     mqtt_password: str = Field(default="", validation_alias="MQTT_BACKEND_PASSWORD")
     mqtt_topic_prefix: str = "pdm/v1"
+    mqtt_client_id: str = "pdm-backend"  # fixed id + persistent session: the broker queues QoS 1 while we are down
+    mqtt_persistent_session: bool = True  # tests use a throwaway id with False so they leave no session behind
     mqtt_workers: int = 2  # more threads only add GIL contention with the paho network thread (P3.9)
     ingest_api_key: str = ""
     dashboard_password: str = ""  # empty -> dashboard auth disabled (dev only, logged as a warning)

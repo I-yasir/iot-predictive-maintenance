@@ -2,15 +2,31 @@
 
 Predicts the Remaining Useful Life (RUL) of monitored assets from streamed sensor telemetry and shows a live fleet overview with per-component diagnostic reports. Built and tested on the NASA C-MAPSS turbofan dataset (in `data/raw/cmapss/`), with two test modes: dataset replay and an ESP32 streaming synthetic telemetry over Wi-Fi.
 
-**Status:** Phase 1 ML pipeline done: data audit, causal features, grouped CV, LightGBM RUL models with conformal intervals, and versioned bundles in `ml/artifacts/`. Results are in `ml/reports/` and `docs/05_ML_and_Data_Spec.md` §7.5.4 (official test RMSE: FD001 14.2, FD002 23.4, FD003 12.0, FD004 26.0). Next up is Phase 2 (IoT ingestion contract, replay simulator, ESP32).
+**Status:** MVP built and verified end to end (Phase 5). Dataset replay and the virtual ESP32 stream through the same ingest path as a real device; the dashboard shows the fleet live and a diagnostic report per engine. Results against the PRD targets are in [`docs/mvp_signoff.md`](docs/mvp_signoff.md). Open: the run on a physical ESP32 board and a CI pipeline.
+
+## Quick start (Docker)
+
+```bash
+cp .env.example .env     # set every change-me value
+make passwd              # broker password file from .env
+make up                  # broker, TimescaleDB, backend :8000, dashboard :8080
+make replay              # 10 FD001 test engines at 10 cycles/s, looping
+```
+
+Open http://localhost:8080 and sign in with `DASHBOARD_PASSWORD`. A 10-minute walk-through is in [`docs/demo_script.md`](docs/demo_script.md). `make down` stops everything.
+
+## Development
 
 ```bash
 make venv && source .venv/bin/activate
-make audit      # data audit + profile configs
-make train      # CV model selection + bundles (~6 min on 4 cores)
-make evaluate   # official test evaluation
-make test       # 21 tests
+make infra                # broker + DB only
+make backend              # backend from source on :8000
+make frontend-preview     # dashboard build on :8080 (proxies to the backend)
+make train && make evaluate               # ML pipeline (~6 min on 4 cores)
+make test test-iot test-backend test-frontend
 ```
+
+Stop `make backend` before `make test-backend`: both would subscribe to the same broker.
 
 | Start here | What it is |
 |---|---|
@@ -21,6 +37,8 @@ make test       # 21 tests
 | [`docs/04_TRD.md`](docs/04_TRD.md) | Locked stack, repo layout, MQTT/HTTP payload contract, security |
 | [`docs/05_ML_and_Data_Spec.md`](docs/05_ML_and_Data_Spec.md) | Dataset findings, features, validation, models, storage, drift |
 | [`docs/06_Plan.md`](docs/06_Plan.md) | Implementation checklist |
+| [`docs/mvp_signoff.md`](docs/mvp_signoff.md) | User stories and metrics with evidence |
+| [`docs/demo_script.md`](docs/demo_script.md) | 10-minute demo |
 | [`ml/notebooks/01_data_audit_and_baseline.ipynb`](ml/notebooks/01_data_audit_and_baseline.ipynb) | Documented data audit, EDA and baseline model |
 
 ## Dataset

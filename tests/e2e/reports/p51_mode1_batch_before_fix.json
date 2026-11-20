@@ -1,0 +1,260 @@
+{
+  "url": "http://localhost:8000",
+  "asset_prefix": "B88814",
+  "profiles": {
+    "FD001": {
+      "ok": true,
+      "units": 100,
+      "messages": 13096,
+      "ingest_counts": {
+        "accepted": 13096
+      },
+      "seconds": 94.4,
+      "msgs_per_s": 138.8,
+      "missing_predictions": [],
+      "pred_at_last_cycle": true,
+      "max_abs_pred_diff": 0.6501406976482542,
+      "exact_share": 0.94,
+      "engines_off": {
+        "4": 0.6501,
+        "16": 0.1433,
+        "54": 0.1818,
+        "62": 0.0136,
+        "80": 0.0255,
+        "99": 0.2065
+      },
+      "model_version": "20261120-p3",
+      "metrics": {
+        "rmse": {
+          "offline_p18": 14.228921058714736,
+          "served": 14.236191829047089
+        },
+        "nasa_score": {
+          "offline_p18": 284.2021392285329,
+          "served": 284.5230416433363
+        },
+        "mae": {
+          "offline_p18": 10.71826047218624,
+          "served": 10.727330837
+        },
+        "bias": {
+          "offline_p18": -1.1013580750630356,
+          "served": -1.0925245169999995
+        },
+        "critical_recall": {
+          "offline_p18": 0.92,
+          "served": 0.92
+        },
+        "false_critical_rate": {
+          "offline_p18": 0.0,
+          "served": 0.0
+        },
+        "coverage_p10_p90": {
+          "offline_p18": 0.93,
+          "served": 0.93
+        }
+      }
+    },
+    "FD002": {
+      "ok": true,
+      "units": 259,
+      "messages": 33991,
+      "ingest_counts": {
+        "accepted": 33991
+      },
+      "seconds": 261.0,
+      "msgs_per_s": 130.3,
+      "missing_predictions": [],
+      "pred_at_last_cycle": true,
+      "max_abs_pred_diff": 1.6630145736939994e-05,
+      "exact_share": 1.0,
+      "engines_off": {},
+      "model_version": "20261120-p4",
+      "metrics": {
+        "rmse": {
+          "offline_p18": 22.997283877935608,
+          "served": 22.997284038838956
+        },
+        "nasa_score": {
+          "offline_p18": 3852.897161762659,
+          "served": 3852.8968923319853
+        },
+        "mae": {
+          "offline_p18": 14.526570479512927,
+          "served": 14.526570384555987
+        },
+        "bias": {
+          "offline_p18": -7.153028021813986,
+          "served": -7.153028009266409
+        },
+        "critical_recall": {
+          "offline_p18": 1.0,
+          "served": 1.0
+        },
+        "false_critical_rate": {
+          "offline_p18": 0.0,
+          "served": 0.0
+        },
+        "coverage_p10_p90": {
+          "offline_p18": 0.7876447876447876,
+          "served": 0.7876447876447876
+        }
+      }
+    },
+    "FD003": {
+      "ok": false,
+      "units": 100,
+      "messages": 16596,
+      "ingest_counts": {
+        "accepted": 16596
+      },
+      "seconds": 120.3,
+      "msgs_per_s": 137.9,
+      "missing_predictions": [],
+      "pred_at_last_cycle": true,
+      "max_abs_pred_diff": 21.850333899411524,
+      "exact_share": 0.39,
+      "engines_off": {
+        "2": 1.1145,
+        "3": 0.1423,
+        "5": 1.3153,
+        "7": 11.5891,
+        "8": 7.1372,
+        "9": 13.7095,
+        "10": 3.0038,
+        "11": 3.0287,
+        "12": 3.3213,
+        "14": 3.1489,
+        "15": 2.6709,
+        "17": 12.8232,
+        "18": 19.625,
+        "19": 1.1704,
+        "22": 1.6986,
+        "25": 3.6382,
+        "26": 0.5983,
+        "29": 0.41,
+        "30": 21.8503,
+        "31": 0.5314,
+        "32": 1.6007,
+        "33": 6.2804,
+        "34": 4.0734,
+        "35": 1.2043,
+        "36": 0.6281,
+        "38": 1.1631,
+        "41": 1.0066,
+        "43": 1.6976,
+        "44": 1.5333,
+        "48": 4.1235,
+        "49": 11.0997,
+        "50": 0.7922,
+        "51": 4.1194,
+        "53": 3.6606,
+        "55": 6.9616,
+        "56": 15.9439,
+        "57": 13.3552,
+        "58": 0.3356,
+        "59": 1.5771,
+        "60": 6.1846,
+        "62": 10.6367,
+        "63": 2.4878,
+        "65": 0.0147,
+        "67": 8.1335,
+        "68": 21.1617,
+        "69": 0.2289,
+        "70": 4.3848,
+        "73": 2.67,
+        "76": 1.2012,
+        "79": 1.1858,
+        "80": 0.2667,
+        "83": 1.9407,
+        "85": 1.8251,
+        "86": 1.7698,
+        "87": 20.4137,
+        "89": 0.0543,
+        "90": 12.0495,
+        "93": 12.6771,
+        "95": 19.5715,
+        "97": 0.5545,
+        "98": 1.2664
+      },
+      "model_version": "20261120-p3",
+      "metrics": {
+        "rmse": {
+          "offline_p18": 12.020838142253304,
+          "served": 14.307720575574445
+        },
+        "nasa_score": {
+          "offline_p18": 286.20485707019793,
+          "served": 355.63190022826376
+        },
+        "mae": {
+          "offline_p18": 8.35400700077528,
+          "served": 10.31415245
+        },
+        "bias": {
+          "offline_p18": 0.20606514304840468,
+          "served": -2.20230169
+        },
+        "critical_recall": {
+          "offline_p18": 0.85,
+          "served": 0.85
+        },
+        "false_critical_rate": {
+          "offline_p18": 0.0,
+          "served": 0.0
+        },
+        "coverage_p10_p90": {
+          "offline_p18": 0.92,
+          "served": 0.92
+        }
+      }
+    },
+    "FD004": {
+      "ok": true,
+      "units": 248,
+      "messages": 41214,
+      "ingest_counts": {
+        "accepted": 41214
+      },
+      "seconds": 284.5,
+      "msgs_per_s": 144.9,
+      "missing_predictions": [],
+      "pred_at_last_cycle": true,
+      "max_abs_pred_diff": 3.6181650486355466e-05,
+      "exact_share": 1.0,
+      "engines_off": {},
+      "model_version": "20261120-p4",
+      "metrics": {
+        "rmse": {
+          "offline_p18": 24.688567450083223,
+          "served": 24.6885671155881
+        },
+        "nasa_score": {
+          "offline_p18": 3760.5571073981064,
+          "served": 3760.5566734892627
+        },
+        "mae": {
+          "offline_p18": 16.567534202681344,
+          "served": 16.56753355483871
+        },
+        "bias": {
+          "offline_p18": -7.9929558369019835,
+          "served": -7.992956372580645
+        },
+        "critical_recall": {
+          "offline_p18": 0.9056603773584906,
+          "served": 0.9056603773584906
+        },
+        "false_critical_rate": {
+          "offline_p18": 0.0,
+          "served": 0.0
+        },
+        "coverage_p10_p90": {
+          "offline_p18": 0.782258064516129,
+          "served": 0.782258064516129
+        }
+      }
+    }
+  },
+  "ok": false
+}

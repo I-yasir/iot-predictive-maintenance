@@ -26,7 +26,7 @@ from typing import Any
 import numpy as np
 
 from pdm_iot.payload import build_payload
-from pdm_iot.transports import HttpTransport, MqttTransport, SendResult, Transport, encode
+from pdm_iot.transports import FallbackTransport, HttpTransport, MqttTransport, SendResult, Transport, encode
 from pdm_ml.config import find_root
 
 log = logging.getLogger("pdm.virtual_esp32")
@@ -261,18 +261,28 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--count", type=int, default=0, help="messages to send (0 = one full life)")
     ap.add_argument("--faults", default="", help="e.g. malformed@10,missing@20,range@30,duplicate@40,drop@50:3")
     ap.add_argument("--site", default=os.environ.get("MQTT_SITE_ID", "lab"))
-    ap.add_argument("--transport", default="mqtt", choices=["mqtt", "http", "stdout"])
+    ap.add_argument("--transport", default="mqtt", choices=["mqtt", "http", "mqtt+http", "stdout"],
+                    help="mqtt+http = MQTT with HTTP fallback, like the firmware")
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, stream=sys.stderr)
     dev = VirtualDevice(args.asset, args.profile, args.site, args.mode, args.seed, faults=parse_faults(args.faults))
     transport: Transport
+    def mqtt_t(**kw: Any) -> MqttTransport:
+        return MqttTransport(os.environ.get("MQTT_HOST", "localhost"), int(os.environ.get("MQTT_PORT", "1883")),
+                             "pdm-replay", os.environ.get("MQTT_REPLAY_PASSWORD"),
+                             os.environ.get("MQTT_TOPIC_PREFIX", "pdm/v1"), **kw)
+
+    def http_t() -> HttpTransport:
+        return HttpTransport(os.environ.get("INGEST_URL", "http://localhost:8000/api/v1/ingest"),
+                             os.environ.get("INGEST_API_KEY", ""))
+
     if args.transport == "mqtt":
-        transport = MqttTransport(os.environ.get("MQTT_HOST", "localhost"), int(os.environ.get("MQTT_PORT", "1883")),
-                                  "pdm-replay", os.environ.get("MQTT_REPLAY_PASSWORD"),
-                                  os.environ.get("MQTT_TOPIC_PREFIX", "pdm/v1"))
+        transport = mqtt_t()
     elif args.transport == "http":
-        transport = HttpTransport(os.environ.get("INGEST_URL", "http://localhost:8000/api/v1/ingest"),
-                                  os.environ.get("INGEST_API_KEY", ""))
+        transport = http_t()
+    elif args.transport == "mqtt+http":
+        transport = FallbackTransport(mqtt_t(require_connection=False, connect_timeout_s=3, publish_timeout_s=2),
+                                      http_t())
     else:
         transport = _Stdout()
     count = args.count or dev.gen.life

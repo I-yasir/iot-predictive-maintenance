@@ -15,8 +15,12 @@ import s from "./test.module.css";
 const REPLAY_TOKEN: Record<string, string> = { IDLE: "offline", RUNNING: "healthy", PAUSED: "warning", COMPLETED: "warming", ERROR: "critical", STOPPED: "offline" };
 export const SPEED_MIN = 0.5;
 export const SPEED_MAX = 50;
-/** log-scale slider: position 0..100 <-> 0.5..50 cycles/s */
-export const posToSpeed = (p: number) => Math.round(SPEED_MIN * (SPEED_MAX / SPEED_MIN) ** (p / 100) * 10) / 10;
+/** log-scale slider: position 0..100 <-> 0.5..50 cycles/s, rounded to 0.1 below 10 and whole numbers above,
+ *  so round speeds such as 20 cycles/s can actually be picked */
+export const posToSpeed = (p: number) => {
+  const v = SPEED_MIN * (SPEED_MAX / SPEED_MIN) ** (p / 100);
+  return v < 10 ? Math.round(v * 10) / 10 : Math.round(v);
+};
 export const speedToPos = (v: number) => (100 * Math.log(v / SPEED_MIN)) / Math.log(SPEED_MAX / SPEED_MIN);
 
 export function parseUnits(text: string): number[] | null {
@@ -156,7 +160,7 @@ function IngestHealth() {
   const max = Math.max(1, ...bars.map((b) => b.acc + b.rej));
   const sample = dl.data?.items.find((x) => x.id === sel) ?? dl.data?.items[0];
   return (
-    <section className="card" aria-labelledby="ingest-h" style={{ display: "grid", gap: 12 }}>
+    <section className="card" aria-labelledby="ingest-h" style={{ display: "grid", gap: 12, gridTemplateColumns: "minmax(0, 1fr)" }}>
       <header>
         <h2 id="ingest-h">Ingest health</h2>
         <span className="muted" style={{ font: "var(--type-small)" }}>MQTT {d.mqtt_connected ? "connected" : "disconnected"} · DB {d.db_ok ? "ok" : "failing"}</span>
@@ -182,17 +186,17 @@ function IngestHealth() {
       <div>
         <h3>Top rejection reasons (24 h)</h3>
         {d.dead_letter_24h.length ? (
-          <table><tbody>{d.dead_letter_24h.slice(0, 6).map((r) => <tr key={r.reason}><td className="mono">{r.reason}</td><td className="r">{r.n}</td></tr>)}</tbody></table>
+          <table><tbody>{d.dead_letter_24h.slice(0, 6).map((r) => <tr key={r.reason}><td className="mono" style={{ overflowWrap: "anywhere" }}>{r.reason}</td><td className="r">{r.n}</td></tr>)}</tbody></table>
         ) : <p className="muted">No rejections in the last 24 h.</p>}
       </div>
       {dl.data?.items.length ? (
-        <div style={{ display: "grid", gap: 8 }}>
+        <div style={{ display: "grid", gap: 8, gridTemplateColumns: "minmax(0, 1fr)" }}>
           <label>Dead-letter sample
-            <select value={sample?.id ?? ""} onChange={(e) => setSel(Number(e.target.value))}>
+            <select style={{ width: "100%" }} value={sample?.id ?? ""} onChange={(e) => setSel(Number(e.target.value))}>
               {dl.data.items.map((x) => <option key={x.id} value={x.id}>{absTime(x.received_at)} · {x.reason} · {x.asset_id ?? "unknown asset"}</option>)}
             </select>
           </label>
-          {sample ? <><p className="muted">{sample.transport} {sample.topic ?? ""} — {sample.detail}</p><pre className={s.pre}>{sample.raw}{sample.raw_truncated ? "\n…(truncated)" : ""}</pre></> : null}
+          {sample ? <><p className="muted">{sample.transport} {sample.topic ?? ""} — {sample.detail}</p><pre className={s.pre} tabIndex={0} role="region" aria-label="Last raw payload">{sample.raw}{sample.raw_truncated ? "\n…(truncated)" : ""}</pre></> : null}
         </div>
       ) : null}
     </section>
@@ -261,7 +265,7 @@ function DevicesPanel() {
       {sel ? (
         <div>
           <h3>Last payload · <span className="mono">{sel}</span></h3>
-          <pre className={s.pre}>{last.data?.items[0] ? JSON.stringify(last.data.items[0], null, 2) : "No telemetry stored for this device."}</pre>
+          <pre className={s.pre} tabIndex={0} role="region" aria-label="Last stored telemetry">{last.data?.items[0] ? JSON.stringify(last.data.items[0], null, 2) : "No telemetry stored for this device."}</pre>
         </div>
       ) : null}
     </section>

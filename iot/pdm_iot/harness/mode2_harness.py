@@ -12,6 +12,9 @@ checks what a Mode 2 device must guarantee before the backend trusts it:
 
     pdm-harness --virtual --count 60 --rate 10 --faults malformed@10,missing@20,range@30,duplicate@40,out_of_order@45,drop@50:3
     pdm-harness --listen 120 --asset FD001-E001 --rate 1      # a physical ESP32 on the same broker
+    pdm-harness --virtual ... --backend http://localhost:8000 # full stack (P5.3): the real backend acks, and
+                                                              # its stored data, dead letters and live WS
+                                                              # updates are checked too
 
 Writes reports/mode2_<UTC timestamp>.md and .json.
 """
@@ -180,7 +183,7 @@ def _peek_seq(raw: bytes) -> int | None:
 
 
 def check(a: Analysis, rate_hz: float, injected: list[dict[str, Any]], acks: list[dict[str, Any]] | None,
-          drop_buffered: int = 0) -> list[dict[str, Any]]:
+          drop_buffered: int = 0, real_backend: bool = False) -> list[dict[str, Any]]:
     """Turn an Analysis into pass/fail checks."""
     out: list[dict[str, Any]] = []
     injected_reject = sum(1 for f in injected if f["kind"] in ("malformed", "missing", "range"))
@@ -222,9 +225,87 @@ def check(a: Analysis, rate_hz: float, injected: list[dict[str, Any]], acks: lis
         out.append({"check": f"fault:{kind}@{seq}", "ok": ok, "detail": f"expected {EXPECTED[kind]}, got {got}"})
     if acks is not None:
         acked = sum(1 for x in acks if x.get("status") == "accepted")
-        out.append({"check": "acks", "ok": acked == a.accepted + len(a.duplicates),
-                    "detail": f"{acked} accepted acks for {a.accepted} accepted (+{len(a.duplicates)} duplicates, "
-                              f"which the stub does not de-duplicate)"})
+        if real_backend:
+            # the backend drops a re-sent msg_id, and a cycle it already stored (the injected out-of-order
+            # message repeats cycle-3), as duplicates: neither is stored nor acked
+            want_acks = a.accepted - len(a.regressions)
+            out.append({"check": "acks", "ok": acked == want_acks,
+                        "detail": f"{acked} accepted acks from the backend; expected {want_acks} = {a.accepted} valid "
+                                  f"- {len(a.regressions)} repeated cycle(s) ({len(a.duplicates)} re-sent msg_id "
+                                  f"not counted as valid)"})
+        else:
+            out.append({"check": "acks", "ok": acked == a.accepted + len(a.duplicates),
+                        "detail": f"{acked} accepted acks for {a.accepted} accepted (+{len(a.duplicates)} "
+                                  f"duplicates, which the stub does not de-duplicate)"})
+    return out
+
+
+class WsWatcher:
+    """Counts the backend's live `prediction` events for one asset: what the dashboard receives."""
+
+    def __init__(self, base_url: str, cookies: dict[str, str], asset: str) -> None:
+        self.asset, self.events, self.error = asset, 0, ""
+        self.url = base_url.replace("http", "ws", 1).rstrip("/") + "/ws/v1/stream"
+        self.cookie = "; ".join(f"{k}={v}" for k, v in cookies.items())
+        self._stop = threading.Event()
+        self._t = threading.Thread(target=self._run, daemon=True, name="harness-ws")
+        self._t.start()
+
+    def _run(self) -> None:
+        try:
+            from websockets.sync.client import connect  # backend env; optional for device-only use
+        except ImportError:
+            self.error = "websockets not installed"
+            return
+        try:
+            with connect(self.url, additional_headers={"Cookie": self.cookie}, open_timeout=10) as ws:
+                while not self._stop.is_set():
+                    try:
+                        msg = json.loads(ws.recv(timeout=0.5))
+                    except TimeoutError:
+                        continue
+                    if msg.get("type") == "prediction" and msg.get("data", {}).get("asset_id") == self.asset:
+                        self.events += 1
+        except Exception as e:  # reported as a failed check, never crashes the harness
+            self.error = f"{type(e).__name__}: {e}"
+
+    def stop(self) -> None:
+        self._stop.set()
+        self._t.join(5)
+
+
+def backend_checks(base_url: str, cookies: dict[str, str], asset: str, injected: list[dict[str, Any]],
+                   a: Analysis, ws: WsWatcher | None) -> list[dict[str, Any]]:
+    """Full-stack checks: what the backend stored and pushed for the run (docs/06 P5.3)."""
+    import httpx
+
+    out: list[dict[str, Any]] = []
+    with httpx.Client(base_url=base_url, cookies=cookies, timeout=15) as c:
+        st = c.get(f"/api/v1/assets/{asset}")
+        if st.status_code != 200:
+            return [{"check": "backend:asset", "ok": False, "detail": f"GET /assets/{asset} -> {st.status_code}"}]
+        d = st.json()
+        out.append({"check": "backend:asset", "ok": d["source"] == "VIRTUAL_ESP32" and d["rul_pred"] is not None,
+                    "detail": f"source {d['source']}, state {d['state']}, last cycle {d['last_cycle']}, "
+                              f"RUL {d['rul_pred'] if d['rul_pred'] is None else round(d['rul_pred'], 1)}"})
+        dl = c.get("/api/v1/dead-letter", params={"limit": 200}).json()["items"]
+        mine = [x for x in dl if x.get("asset_id") == asset or asset in (x.get("topic") or "")]
+        reasons = sorted({x["reason"] for x in mine})
+        for f in injected:
+            if f["kind"] in ("missing", "range", "malformed"):
+                exp = EXPECTED[f["kind"]]
+                out.append({"check": f"backend:dead-letter:{f['kind']}@{f['seq']}", "ok": exp in reasons,
+                            "detail": f"expected {exp} in the backend dead letter, found {reasons}"})
+        tel = c.get(f"/api/v1/assets/{asset}/telemetry", params={"limit": 5000}).json()["items"]
+        stored = len({r["seq"] for r in tel})
+        want = a.accepted - len(a.regressions)
+        out.append({"check": "backend:stored", "ok": stored == want,
+                    "detail": f"{stored} distinct seqs stored; expected {want} ({a.accepted} valid, minus "
+                              f"{len(a.regressions)} repeated cycle(s) the backend drops as duplicates)"})
+    if ws is not None:
+        out.append({"check": "backend:live-updates", "ok": ws.events > 0 and not ws.error,
+                    "detail": f"{ws.events} prediction events pushed over /ws/v1/stream"
+                              + (f"; error: {ws.error}" if ws.error else "")})
     return out
 
 
@@ -264,6 +345,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--seed", type=int, default=12345)
     ap.add_argument("--faults", default="")
     ap.add_argument("--no-ack", action="store_true", help="do not run the echo-ack backend stub")
+    ap.add_argument("--backend", metavar="URL", help="full stack: the real backend acks; also check its REST + "
+                    "WebSocket output (needs DASHBOARD_PASSWORD)")
     ap.add_argument("--out", default=str(find_root() / "reports"))
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, stream=sys.stderr, format="%(asctime)s %(levelname)s %(message)s")
@@ -271,7 +354,17 @@ def main(argv: list[str] | None = None) -> int:
     prefix = os.environ.get("MQTT_TOPIC_PREFIX", "pdm/v1")
     profiles = load_profiles(find_root() / "config" / "profiles")
     watcher = _mqtt("pdm-harness", "MQTT_HARNESS_PASSWORD", "pdm-harness-observer")
-    acker = None if args.no_ack else _mqtt("pdm-backend", "MQTT_BACKEND_PASSWORD", "pdm-harness-ackstub")
+    acker = None if (args.no_ack or args.backend) else _mqtt("pdm-backend", "MQTT_BACKEND_PASSWORD",
+                                                             "pdm-harness-ackstub")
+    cookies: dict[str, str] = {}
+    ws = None
+    if args.backend:
+        import httpx
+
+        r = httpx.post(f"{args.backend}/api/v1/auth/login", json={"password": os.environ.get("DASHBOARD_PASSWORD")})
+        r.raise_for_status()
+        cookies = dict(r.cookies)
+        ws = WsWatcher(args.backend, cookies, args.asset)
     obs = Observer(watcher, args.site, prefix, profiles, acker)
     time.sleep(0.5)  # let subscriptions settle
     injected: list[dict[str, Any]] = []
@@ -289,18 +382,24 @@ def main(argv: list[str] | None = None) -> int:
             drop_buffered = sum(int(f.get("cycles", 0)) for f in injected if f["kind"] == "drop")
         else:
             time.sleep(args.listen or 0)
-        time.sleep(1.0)  # drain in-flight messages and acks
+        time.sleep(3.0 if args.backend else 1.0)  # drain in-flight messages and acks
     finally:
+        if ws:
+            ws.stop()
         watcher.close()
         if acker:
             acker.close()
     records, acks = obs.snapshot()
     a = analyse(records, profiles, prefix)
-    checks = check(a, args.rate, injected, None if args.no_ack else acks, drop_buffered)
+    checks = check(a, args.rate, injected, None if args.no_ack else acks, drop_buffered,
+                   real_backend=bool(args.backend))
+    if args.backend:
+        checks += backend_checks(args.backend, cookies, args.asset, injected, a, ws)
     meta = {"generated": datetime.now(UTC).isoformat(timespec="seconds"),
             "mode": "virtual ESP32" if args.virtual else f"listen {args.listen}s",
             "asset": args.asset, "site": args.site, "rate_hz": args.rate, "count": args.count,
-            "faults": args.faults or "none", "generator_mode": args.mode, "seed": args.seed}
+            "faults": args.faults or "none", "generator_mode": args.mode, "seed": args.seed,
+            "acks_from": args.backend or ("none" if args.no_ack else "echo-ack stub")}
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
@@ -309,7 +408,7 @@ def main(argv: list[str] | None = None) -> int:
         {"meta": meta, "checks": checks, "injected": injected, "rejected": dict(a.rejected),
          "late": a.late, "latency_ms": a.latency_ms, "rate_hz": a.rate_hz}, indent=2) + "\n")
     passed = all(c["ok"] for c in checks)
-    print(f"{'PASS' if passed else 'FAIL'}: reports/mode2_{stamp}.md", file=sys.stderr)
+    print(f"{'PASS' if passed else 'FAIL'}: {out / f'mode2_{stamp}.md'}", file=sys.stderr)
     for c in checks:
         print(f"  {'ok  ' if c['ok'] else 'FAIL'} {c['check']}: {c['detail']}", file=sys.stderr)
     return 0 if passed else 1

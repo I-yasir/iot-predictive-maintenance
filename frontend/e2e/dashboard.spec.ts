@@ -1,8 +1,8 @@
 import { test, expect, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import fs from "node:fs";
+import { login } from "./helpers";
 
-const PASSWORD = process.env.PDM_PASSWORD ?? process.env.DASHBOARD_PASSWORD ?? "";
 const SHOTS = process.env.PDM_SHOTS ?? "e2e-screens";
 const VIEWPORTS = [
   { name: "375", width: 375, height: 812 },
@@ -10,14 +10,6 @@ const VIEWPORTS = [
   { name: "1280", width: 1280, height: 800 },
   { name: "1920", width: 1920, height: 1080 },
 ];
-
-async function login(page: Page) {
-  await page.goto("/login");
-  await page.getByLabel("Dashboard password").fill(PASSWORD);
-  await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page).toHaveURL(/\/overview/);
-  await expect(page.getByRole("navigation", { name: "Main" })).toBeVisible(); // shell rendered, safe to Tab
-}
 
 async function firstAssetId(page: Page): Promise<string> {
   const res = await page.request.get("/api/v1/assets");
@@ -34,7 +26,6 @@ async function axe(page: Page, label: string): Promise<string[]> {
 }
 
 test.beforeAll(() => {
-  expect(PASSWORD, "set PDM_PASSWORD or DASHBOARD_PASSWORD").not.toBe("");
   fs.mkdirSync(SHOTS, { recursive: true });
 });
 
@@ -44,6 +35,7 @@ for (const vp of VIEWPORTS) for (const scheme of SCHEMES) {
     test.use({ viewport: { width: vp.width, height: vp.height }, colorScheme: scheme });
 
     test("views render, no serious axe violations, no horizontal scroll", async ({ page }) => {
+      test.setTimeout(180_000); // 7 views with axe each; slower on a dev DB holding ~1,000 test assets
       await login(page);
       const id = await firstAssetId(page);
       const pages: [string, string, () => Promise<void>][] = [

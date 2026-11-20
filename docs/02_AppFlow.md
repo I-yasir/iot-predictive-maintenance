@@ -164,6 +164,7 @@ Query params persist UI state: `/overview?state=CRITICAL&profile=FD001&source=ES
 | Unknown profile | registry lookup | 422 `unknown_profile` |
 | Model artifact missing/corrupt | startup check | backend refuses to start (fail fast) with clear log |
 | Inference exception | try/except | telemetry kept, prediction status `ERROR`, asset keeps last state, metric incremented |
-| DB unavailable | connection error | HTTP 503; MQTT messages are not acked (QoS 1 redelivery) |
-| Broker down | paho on_disconnect | reconnect with backoff; HTTP ingest remains available |
+| DB unavailable | connection error | HTTP 503 and `/readyz` false (the dashboard shows a banner). MQTT messages are held by the worker and retried with backoff (1 → 30 s) until storage is back, so none are lost (P5.5: 196/196 cycles stored across an 8 s outage). The assets in a failed batch are dropped from memory and rehydrated from stored telemetry on their next message, so a retried cycle never enters the streaming state twice. Retried messages are rate-limited by their receipt time, not by when they are retried |
+| Broker down | paho on_disconnect | backend reconnects with backoff; HTTP ingest remains available. Devices switch to HTTP: the firmware after 3 failed MQTT publishes, the virtual ESP32 with `--transport mqtt+http` likewise, retrying MQTT every 30 s (P5.5: 60/60 messages, 0 failures over a 10 s broker outage) |
+| Backend restart | — | the broker queues QoS 1 telemetry for the backend's persistent session; asset state is rehydrated from the DB. Assets that stopped sending while the backend was down are still marked OFFLINE by a DB sweep every 5 s |
 | Clock skew on device | `ts` vs server time > 5 min | accept, flag `clock_skew`; server time used for latency stats |

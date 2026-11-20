@@ -28,7 +28,10 @@ class MqttSubscriber:
     def __init__(self, settings: Settings, ingest: IngestService) -> None:
         self.s, self.ingest = settings, ingest
         self.prefix = settings.mqtt_topic_prefix
-        self.client = mqtt.Client(CallbackAPIVersion.VERSION2, client_id="pdm-backend", clean_session=True)
+        # Persistent session (clean_session=False): while the backend is down or restarting, the broker keeps
+        # our QoS 1 subscriptions and queues telemetry (max_queued_messages), then delivers it on reconnect.
+        self.client = mqtt.Client(CallbackAPIVersion.VERSION2, client_id=settings.mqtt_client_id,
+                                  clean_session=not settings.mqtt_persistent_session)
         self.client.username_pw_set(settings.mqtt_username, settings.mqtt_password or None)
         self.client.reconnect_delay_set(1, 30)
         self.client.on_connect = self._on_connect
@@ -39,6 +42,7 @@ class MqttSubscriber:
         self.workers = [threading.Thread(target=self._work, args=(q,), daemon=True, name=f"mqtt-worker-{i}")
                         for i, q in enumerate(self.queues)]
         self.connected = threading.Event()
+        self._stopping = threading.Event()
         ingest.ack = self.publish_ack
 
     def start(self) -> None:
@@ -47,11 +51,18 @@ class MqttSubscriber:
         self.client.connect_async(self.s.mqtt_host, self.s.mqtt_port, keepalive=30)
         self.client.loop_start()
 
-    def stop(self) -> None:
+    def stop(self, drain_timeout_s: float = 15.0) -> None:
+        """Stop taking messages, then let the workers write what is already queued (graceful restart loses
+        nothing: anything not yet delivered stays queued at the broker for our persistent session)."""
         self.client.disconnect()
         self.client.loop_stop()
         for q in self.queues:
             q.put(None)
+        if not self.ingest.db_ok:
+            self._stopping.set()  # storage is down: don't sit out the drain timeout retrying
+        deadline = time.monotonic() + drain_timeout_s
+        for w in self.workers:
+            w.join(max(0.0, deadline - time.monotonic()))
 
     def _on_connect(self, client: mqtt.Client, userdata: Any, flags: Any, rc: Any, props: Any = None) -> None:
         if rc.is_failure:
@@ -104,10 +115,28 @@ class MqttSubscriber:
                 parsed = parse_topic(topic, self.prefix)
                 if parsed is not None:
                     batch.append((raw, "mqtt", (parsed[0], parsed[1]), t))
+            self._process_with_retry(batch)
+
+    def _process_with_retry(self, batch: list[tuple[bytes, str, tuple[str, str] | None, float | None]]) -> None:
+        """paho has already acked these messages, so if storage is down they are held here and retried with
+        backoff (1 s doubling to 30 s) instead of being dropped (docs/02 §8). The worker blocks meanwhile, which
+        keeps per-asset order; new messages wait in its queue (bounded, see `backpressure`)."""
+        delay = 1.0
+        while batch:
             try:
-                self.ingest.process_batch(batch)
+                results = self.ingest.process_batch(batch)
             except Exception:
                 log.exception("mqtt_ingest_crashed", n=len(batch))
+                return
+            batch = [b for b, r in zip(batch, results, strict=True) if r.status == "unavailable"]
+            if not batch:
+                return
+            if self._stopping.is_set():
+                log.error("mqtt_shutdown_with_unstored_messages", n=len(batch))
+                return
+            log.warning("mqtt_storage_unavailable_retrying", n=len(batch), retry_in_s=delay)
+            self._stopping.wait(delay)
+            delay = min(delay * 2, 30.0)
 
     def publish_ack(self, site: str, asset: str, body: dict[str, Any]) -> None:
         self.client.publish(f"{self.prefix}/{site}/{asset}/ack", json.dumps(body, default=str), qos=0)

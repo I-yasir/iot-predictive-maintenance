@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import socket
 import time
+import uuid
 
 import pytest
 import sqlalchemy as sa
@@ -76,7 +77,8 @@ def _broker() -> bool:
 @pytest.mark.skipif(not _broker(), reason="no broker / .env")
 def test_mqtt_end_to_end_with_acks(db_url: str) -> None:
     """Virtual ESP32 -> Mosquitto -> backend subscriber -> DB, with acks back on the ack topic."""
-    s = make_settings(db_url, mqtt_enabled=True, mqtt_password=os.environ["MQTT_BACKEND_PASSWORD"])
+    s = make_settings(db_url, mqtt_enabled=True, mqtt_password=os.environ["MQTT_BACKEND_PASSWORD"],
+                      mqtt_client_id=f"pdm-backend-test-{uuid.uuid4().hex[:8]}", mqtt_persistent_session=False)
     site = f"t{int(time.time())}"
     with TestClient(create_app(s, start_background=True)) as c:
         sub = c.app.state  # noqa: F841

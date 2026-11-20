@@ -33,6 +33,26 @@ def _ewm(z: np.ndarray, alpha: float) -> np.ndarray:
     return np.asarray(y)
 
 
+# A window whose sample variance is below this is treated as constant (std = 0) by both implementations.
+# Regime-normalised inputs are O(1), so this only ever removes floating-point residue.
+VAR_EPS = 1e-12
+
+
+def _window_sums(a: np.ndarray, window: int) -> np.ndarray:
+    """Sum of the last `window` rows (fewer at the start) for every row, added oldest to newest.
+
+    The online path adds exactly the same values in the same order, so the two agree bit for bit. (An earlier
+    version differenced a running cumsum; its rounding error grew with the cycle count, which leaked engine
+    age into the std of near-constant sensors and let the models learn it. Found in P5.1.)
+    """
+    n = len(a)
+    pad = np.vstack([np.zeros((window - 1,) + a.shape[1:]), a])
+    acc = np.zeros_like(a, dtype=float)
+    for j in range(window):
+        acc = acc + pad[j : j + n]
+    return acc
+
+
 def _unit_features(z: np.ndarray, t: np.ndarray, window: int, alpha: float, min_cycles: int) -> np.ndarray:
     n, k = z.shape
     t = t.astype(float) - float(t[0])  # centring improves numerical stability, slope unchanged
@@ -42,8 +62,7 @@ def _unit_features(z: np.ndarray, t: np.ndarray, window: int, alpha: float, min_
     cnt = (idx - lo + 1).astype(float)
 
     def wsum(a: np.ndarray) -> np.ndarray:
-        c = np.vstack([np.zeros((1,) + a.shape[1:]), np.cumsum(a, axis=0)])
-        return c[idx + 1] - c[lo]
+        return _window_sums(a, window)
 
     tt = t[:, None]
     sx, sxx, sxt = wsum(z), wsum(z * z), wsum(z * tt)
@@ -51,7 +70,7 @@ def _unit_features(z: np.ndarray, t: np.ndarray, window: int, alpha: float, min_
     c = cnt[:, None]
     mean = sx / c
     var = np.where(c > 1, (sxx - sx * sx / c) / np.maximum(c - 1, 1), 0.0)
-    std = np.sqrt(np.clip(var, 0, None))
+    std = np.sqrt(np.where(var > VAR_EPS, var, 0.0))
     den = c * stt - st * st
     slope = np.where(den > 1e-12, (c * sxt - sx * st) / np.where(den > 1e-12, den, 1.0), 0.0)
     first = np.cumsum(z[:min_cycles], axis=0) / np.arange(1, min(n, min_cycles) + 1)[:, None]
@@ -125,15 +144,25 @@ class StreamState:
             self.buf_t.popleft()
         if self.warming_up:
             return None
-        zz = np.vstack(self.buf_z)
-        tt = np.asarray(self.buf_t)[:, None]
-        c = float(len(zz))
-        sx, sxx, sxt = zz.sum(0), (zz * zz).sum(0), (zz * tt).sum(0)
-        st, stt = tt.sum(), (tt * tt).sum()
+        c = float(len(self.buf_z))
+        # same values, same order (oldest first) as `_window_sums`, so batch and online agree bit for bit
+        sx = np.zeros_like(z)
+        sxx = np.zeros_like(z)
+        sxt = np.zeros_like(z)
+        st = np.zeros(1)
+        stt = np.zeros(1)
+        for zi, ti in zip(self.buf_z, self.buf_t, strict=True):
+            tv = np.array([ti])
+            sx = sx + zi
+            sxx = sxx + zi * zi
+            sxt = sxt + zi * tv
+            st = st + tv
+            stt = stt + tv * tv
         mean = sx / c
-        std = np.sqrt(np.clip((sxx - sx * sx / c) / (c - 1), 0, None)) if c > 1 else np.zeros_like(sx)
+        var = (sxx - sx * sx / c) / (c - 1) if c > 1 else np.zeros_like(sx)
+        std = np.sqrt(np.where(var > VAR_EPS, var, 0.0))
         den = c * stt - st * st
-        slope = (c * sxt - sx * st) / den if den > 1e-12 else np.zeros_like(sx)
+        slope = (c * sxt - sx * st) / den if den[0] > 1e-12 else np.zeros_like(sx)
         assert self.first_sum is not None
         base = self.first_sum / min(self.n_seen, self.min_cycles)
         delta = self.ewm - base

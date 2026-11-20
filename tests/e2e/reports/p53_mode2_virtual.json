@@ -1,0 +1,141 @@
+{
+  "meta": {
+    "generated": "2026-11-20T15:52:07+00:00",
+    "mode": "virtual ESP32",
+    "asset": "FD001-V052",
+    "site": "lab",
+    "rate_hz": 10.0,
+    "count": 60,
+    "faults": "malformed@10,missing@20,range@30,duplicate@40,out_of_order@45,drop@50:3",
+    "generator_mode": "trajectory",
+    "seed": 12345,
+    "acks_from": "http://localhost:8000"
+  },
+  "checks": [
+    {
+      "check": "schema",
+      "ok": true,
+      "detail": "58 accepted, 4 rejected ({'parse_error': 1, 'schema:sensors.T30': 1, 'range:T30': 1, 'duplicate_msg_id': 1}), 3 of those were injected"
+    },
+    {
+      "check": "rate",
+      "ok": true,
+      "detail": "observed 10.32 msg/s vs configured 10.0"
+    },
+    {
+      "check": "sequence",
+      "ok": true,
+      "detail": "no permanent gaps (seq [10] unreadable by design)"
+    },
+    {
+      "check": "latency",
+      "ok": true,
+      "detail": "{\"p50\": 1.7, \"p95\": 35.8, \"max\": 301.6}"
+    },
+    {
+      "check": "fault:malformed@10",
+      "ok": true,
+      "detail": "expected parse_error, got 1 parse_error for 1 injected"
+    },
+    {
+      "check": "fault:missing@20",
+      "ok": true,
+      "detail": "expected schema:sensors.T30, got schema:sensors.T30"
+    },
+    {
+      "check": "fault:range@30",
+      "ok": true,
+      "detail": "expected range:T30, got range:T30"
+    },
+    {
+      "check": "fault:duplicate@40",
+      "ok": true,
+      "detail": "expected duplicate_msg_id, got 1 duplicate msg_id"
+    },
+    {
+      "check": "fault:out_of_order@45",
+      "ok": true,
+      "detail": "expected cycle_regression, got regressions at seq [45]"
+    },
+    {
+      "check": "fault:drop@50",
+      "ok": true,
+      "detail": "expected buffered_then_flushed, got 3 buffered and flushed, none lost; max latency 301.6 ms"
+    },
+    {
+      "check": "acks",
+      "ok": true,
+      "detail": "57 accepted acks from the backend; expected 57 = 58 valid - 1 repeated cycle(s) (1 re-sent msg_id not counted as valid)"
+    },
+    {
+      "check": "backend:asset",
+      "ok": true,
+      "detail": "source VIRTUAL_ESP32, state OFFLINE, last cycle 60, RUL 112.4"
+    },
+    {
+      "check": "backend:dead-letter:malformed@10",
+      "ok": true,
+      "detail": "expected parse_error in the backend dead letter, found ['parse_error', 'range:T30', 'schema:sensors.T30']"
+    },
+    {
+      "check": "backend:dead-letter:missing@20",
+      "ok": true,
+      "detail": "expected schema:sensors.T30 in the backend dead letter, found ['parse_error', 'range:T30', 'schema:sensors.T30']"
+    },
+    {
+      "check": "backend:dead-letter:range@30",
+      "ok": true,
+      "detail": "expected range:T30 in the backend dead letter, found ['parse_error', 'range:T30', 'schema:sensors.T30']"
+    },
+    {
+      "check": "backend:stored",
+      "ok": true,
+      "detail": "57 distinct seqs stored; expected 57 (58 valid, minus 1 repeated cycle(s) the backend drops as duplicates)"
+    },
+    {
+      "check": "backend:live-updates",
+      "ok": true,
+      "detail": "57 prediction events pushed over /ws/v1/stream"
+    }
+  ],
+  "injected": [
+    {
+      "kind": "malformed",
+      "seq": 10
+    },
+    {
+      "kind": "missing",
+      "seq": 20
+    },
+    {
+      "kind": "range",
+      "seq": 30
+    },
+    {
+      "kind": "duplicate",
+      "seq": 40
+    },
+    {
+      "kind": "out_of_order",
+      "seq": 45
+    },
+    {
+      "kind": "drop",
+      "seq": 50,
+      "cycles": 3
+    }
+  ],
+  "rejected": {
+    "parse_error": 1,
+    "schema:sensors.T30": 1,
+    "range:T30": 1,
+    "duplicate_msg_id": 1
+  },
+  "late": [],
+  "latency_ms": {
+    "p50": 1.7,
+    "p95": 35.8,
+    "max": 301.6
+  },
+  "rate_hz": 10.32
+}

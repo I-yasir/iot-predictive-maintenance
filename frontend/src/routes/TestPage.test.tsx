@@ -23,6 +23,7 @@ describe("Test & Simulation", () => {
     expect(posToSpeed(0)).toBe(0.5);
     expect(posToSpeed(100)).toBe(50);
     expect(posToSpeed(speedToPos(5))).toBe(5);
+    expect(posToSpeed(Math.round(speedToPos(20)))).toBe(20);
   });
 
   it("US-10: starts a replay with the chosen subset, split, units, speed and transport; pause/stop follow the state", async () => {

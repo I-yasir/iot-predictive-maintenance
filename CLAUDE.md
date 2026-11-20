@@ -51,14 +51,20 @@ After finishing each step:
 make audit       # P1.4 — regenerate data_audit.json and profile configs
 make train       # P1.6–P1.9 — CV, final fit, bundles
 make evaluate    # official test evaluation / Mode 1 batch
-make up          # docker compose: mosquitto + db (backend/frontend join in Phase 3/4)
+make up          # full stack in Docker: mosquitto, db, backend :8000, dashboard :8080 (make infra = mosquitto + db only; make down)
+make replay      # demo replay inside the backend container: 10 FD001 test engines at 10 cps, looping
 make replay-demo # Mode 1: FD001 test unit 34 (or: pdm-replay --profile FD001 --split test --units 10 --speed 20)
 make harness     # Mode 2 harness against virtual ESP32 (or real board)
 make test        # ML tests; make test-iot for contracts + IoT (broker tests need make up)
 make esp32-build # PlatformIO build of iot/esp32 (flashing: iot/esp32/README.md)
-make backend     # Phase 3 API + MQTT subscriber on :8000 (make migrate, make test-backend, make lint-backend)
+make backend     # API + MQTT subscriber from source on :8000 (make migrate, make lint-backend). Stop it before make test-backend: it holds the persistent MQTT session
 make perf        # P3.9 load test (500 msg/s, 300 assets, 5 min) -> reports/perf_p39.md
 make frontend-install  # P4 dashboard deps (npm ci), then make frontend-dev (:5173) or make frontend-build + frontend-preview (:8080)
 make test-frontend     # eslint + tsc + vitest component tests
-make e2e               # Playwright at 375/768/1280/1920 px, dark + light, axe (needs backend, preview and a replay running)
+make e2e               # Playwright: dashboard views + axe, P5.2 replay stream, WS reconnect (needs backend and preview on :8080)
+# Phase 5 end-to-end scripts (need the stack; set -a; . ./.env; set +a first):
+#   python tests/e2e/mode1_batch.py    P5.1 served vs offline predictions on all test engines
+#   python tests/e2e/edge_cases.py     P5.5 OOD, offline, DB down, broker down, backend restart
+#   python tests/e2e/alert_quality.py  P5.6 alert quality on the P5.1 engines (never tune on it)
+#   pdm-harness --virtual --backend http://localhost:8000   P5.3
 ```

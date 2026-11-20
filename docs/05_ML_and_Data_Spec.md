@@ -150,6 +150,8 @@ Implemented once in `ml/pdm_ml/features/` and used verbatim by training and onli
 
 Online buffer per asset holds the last 64 raw cycles + EWM state + first-5-cycles baseline, so per-message cost is O(W).
 
+**Batch/stream parity (fixed in P5.1):** window sums are computed exactly, oldest cycle first, in both the batch path and `StreamState` (no cumulative-sum differences), and a window variance ≤ 1e-12 is snapped to 0 before the square root. The old cumsum version accumulated rounding error with the cycle count, so the window std of a near-constant sensor (e.g. `epr` in FD003) was ~5e-8 in training and exactly 0 when streamed. That leaked engine age into the features and the FD003 model split on it (served vs offline: 61 of 100 engines different, up to 21.9 cycles). Batch and streaming features are now bit-identical (`ml/tests/test_features.py`, FD001/FD002/FD003 units, exact equality). See Q18.
+
 ## 6. Train / Validation / Test Strategy (leakage prevention)
 
 1. **Official test sets (`test_FD00x` + `RUL_FD00x`) are untouched until final evaluation** (P1.8). No tuning on them.
@@ -279,7 +281,11 @@ Rule outcome: the LightGBM + M2 (L 100) mean is adopted for **both** profiles (�
 
 Every bucket at or below 125 cycles improved; the > 125 bucket (57 of 259 and 67 of 248 test engines) did not, and it dominates the miss. On engines with true RUL ≤ 125 the RMSE is 10.5 (FD002) and 12.6 (FD004); with the literature convention of capping the truth at 125 it is 10.0 and 11.9. Engines that far from failure look healthy, so no capped model (LightGBM or M2) can tell 130 from 190 remaining cycles; raising the cap made CV worse (cap-150 rows above). Remaining gap = a target-definition question for the owner, not a modelling one. **No further tuning against the test set.**
 
-**Owner decision (2026-11-20):** FD002/FD004 targets are scored against true RUL capped at 125 (PRD §4.1). Re-scoring the same run-4 predictions (no new model, no new fit): FD002 RMSE **10.02** ✅ (≤ 22; stretch ≤ 18 ✅), NASA score 439 ✅; FD004 RMSE **11.87** ✅ (≤ 24; stretch ≤ 20 ✅), NASA score 767 ✅. All four profiles now meet their PRD RMSE and score targets (`ml/reports/test_FD00x.md`). Open item: FD003 Critical recall 0.85 vs. 0.90.
+**Owner decision (2026-11-20):** FD002/FD004 targets are scored against true RUL capped at 125 (PRD §4.1). Re-scoring the same run-4 predictions (no new model, no new fit): FD002 RMSE **10.02** ✅ (≤ 22; stretch ≤ 18 ✅), NASA score 439 ✅; FD004 RMSE **11.87** ✅ (≤ 24; stretch ≤ 20 ✅), NASA score 767 ✅. All four profiles now meet their PRD RMSE and score targets (`ml/reports/test_FD00x.md`). Open item: FD003 Critical recall 0.85 vs. 0.90 (point prediction; the served alert state reaches 1.00 through the p10 safety override, P5.6).
+
+### 7.5.6 Run 5 — feature parity fix (P5.1, bundles `20261120-p5` / `-p6`)
+
+The window-sum fix above changes features slightly, so all profiles were retrained with the unchanged, pre-registered procedure (`train.py --version 20261120-p5`, then `train_m2.py --version 20261120-p6` for the FD002/FD004 ensembles). CV RMSE [10,150], old → new: FD001 14.29 → 14.19, FD002 15.82 → 15.88 (LightGBM half; `num_leaves` 31 → 15 selected), FD003 14.49 → 14.60 (`W` 70 → 100 selected), FD004 17.11 → 17.01; FD004 ensemble 15.84 → 15.79. CURRENT points to p5 (FD001, FD003) and p6 (FD002, FD004); p3/p4 are kept. Whether to take a fifth, disclosed test-set look to re-score these bundles is an owner decision (Phase 5 report); until then the official test numbers above are those of p3/p4.
 
 
 ### 7.6 Diagnostics (component detail report)
@@ -415,3 +421,4 @@ Retention (TimescaleDB policies): telemetry 30 days, predictions 90 days, alerts
 | Q15 | FD002/FD004 test sets contain many engines with true RUL > 125 (up to 194/195); the cap makes them the main error source | cap ablation in P1.6 picked 140 (FD002) / 160 (FD004) |
 | Q16 | LightGBM rejects `monotone_constraints` with the quantile objective | constraint applied to the point model only |
 | Q17 | Best cap depends on the remaining-life range validated on; FD001/FD003 test truths ≤ 145 vs FD002/FD004 ≤ 195 | see §7.5.2 |
+| Q18 | Cumulative-sum window statistics leak engine age through float rounding (near-constant sensors get a tiny, growing std offline and 0 online) | exact in-order window sums + variance zero-snap in batch and stream; parity test with exact equality (§5, §7.5.6) |

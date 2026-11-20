@@ -193,16 +193,16 @@ pytest 8.4.0, pytest-asyncio 1.0.0, pytest-cov 6.1.1, hypothesis 6.135.0 (payloa
 | mosquitto | 1883 (MQTT), 9001 (WS, disabled by default) | password file required; anonymous disabled |
 | db | 5432 | volume `pgdata` |
 | backend | 8000 | `/api/v1/*`, `/ws/v1/stream`, `/metrics`, `/healthz`, `/readyz` |
-| frontend | 8080 | nginx proxies `/api` and `/ws` to backend |
+| frontend | 8080 | nginx proxies `/api` and `/ws` to backend; hashed `/assets/*.js|css|…` files are cached, every other path falls back to the SPA (so `/assets/<asset_id>` routes work) |
 
-Until the frontend container lands (P5), `make frontend-preview` serves the production build on :8080 with Vite's proxy doing the same `/api` + `/ws` forwarding (`PDM_BACKEND`, default `http://localhost:8000`); `make frontend-dev` runs the hot-reload server on :5173.
+`backend` and `frontend` are in the compose profile `app` (images `pdm-live-backend:0.5.0`, `pdm-live-frontend:0.5.0`, built from `backend/Dockerfile` and `frontend/Dockerfile`). `make up` builds and starts all four services; `make infra` starts only mosquitto + db for running the backend from source (`make backend`); `make replay` runs the demo replay inside the backend container; `make down` stops everything. The backend image installs CPU-only PyTorch (`TORCH_INDEX_URL`), copies the model bundles, configs and C-MAPSS files, runs as a non-root user and has `stop_grace_period: 30s` so the MQTT drain finishes. For development, `make frontend-preview` serves the production build on :8080 with Vite's proxy doing the same `/api` + `/ws` forwarding (`PDM_BACKEND`, default `http://localhost:8000`); `make frontend-dev` runs the hot-reload server on :5173.
 
 All config via environment (`.env`, never committed): `DATABASE_URL`, `MQTT_HOST`, `MQTT_PORT`, `MQTT_USERNAME` (default `pdm-backend`), `MQTT_BACKEND_PASSWORD`, `MQTT_TOPIC_PREFIX=pdm/v1`, `MQTT_WORKERS` (default 2), `INGEST_API_KEY`, `DASHBOARD_PASSWORD`, `SESSION_SECRET` (≥ 32 random chars; signs the session cookie), `MODEL_ROOT=ml/artifacts`, `ACTIVE_PROFILES=FD001,FD002,FD003,FD004`, `ALERTS_CONFIG=config/alerts.yaml`, `DATA_RAW_DIR=data/raw/cmapss`, `CORS_ORIGINS`, `LOG_LEVEL`, `AUTO_MIGRATE` (default true: `alembic upgrade head` at startup; `pdm-backend migrate` does it explicitly).
 
 ## 5. IoT Protocol & Payload Contract
 
 ### 5.1 Transports
-- **Primary — MQTT 3.1.1**, QoS 1, `retain=false`, keepalive 30 s, clean session true. *Exception (P2.6): the ESP32 firmware publishes at QoS 0 because PubSubClient cannot publish QoS 1; loss is detected through `seq` gaps and the Mode 2 harness, and the device buffers up to 64 messages while offline.*
+- **Primary — MQTT 3.1.1**, QoS 1, `retain=false`, keepalive 30 s. Devices and simulators use a clean session. The backend subscribes with a **persistent session** (`clean_session=false`, fixed client id `MQTT_CLIENT_ID`, default `pdm-backend`; `MQTT_PERSISTENT_SESSION=true`), so the broker queues QoS 1 telemetry while the backend restarts (P5.5: 203/203 cycles kept across a restart). On stop the backend drains its worker queues (up to 15 s). Only one backend instance may use a given client id; tests use their own id with a clean session. *Exception (P2.6): the ESP32 firmware publishes at QoS 0 because PubSubClient cannot publish QoS 1; loss is detected through `seq` gaps and the Mode 2 harness, and the device buffers up to 64 messages while offline.*
   - Telemetry: `pdm/v1/{site_id}/{asset_id}/telemetry`
   - Device status (LWT + online msg): `pdm/v1/{site_id}/{asset_id}/status` payload `{"online":true|false,"fw":"...","ip":"...","rssi":-60}` retained
   - Ack (optional, backend → device/harness): `pdm/v1/{site_id}/{asset_id}/ack`

@@ -1,9 +1,9 @@
-.grid { display: grid; gap: var(--space-4); grid-template-columns: 1fr; align-items: start; }
+.grid { display: grid; gap: var(--space-4); grid-template-columns: minmax(0, 1fr); align-items: start; }
 @media (min-width: 1024px) { .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
 .form { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
 .form .wide { grid-column: 1 / -1; }
 .controls { display: flex; gap: var(--space-2); flex-wrap: wrap; align-items: center; }
-.counters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-2); }
+.counters { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: var(--space-2); }
 .counter { background: var(--surface-2); border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3); display: grid; }
 .counter strong { font: var(--type-h2); font-variant-numeric: tabular-nums; }
 .progress { display: grid; gap: var(--space-1); max-height: 240px; overflow: auto; margin: 0; padding: 0; list-style: none; }

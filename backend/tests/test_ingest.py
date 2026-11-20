@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import json
+import time
 
 import sqlalchemy as sa
 from conftest import API_KEY, post, replay_msgs
@@ -157,6 +158,42 @@ def test_db_unavailable_returns_503(client: TestClient, monkeypatch) -> None:
     assert r.status_code == 503 and r.json()["status"] == "unavailable"
     monkeypatch.setattr(svc, "engine", good)
     assert post(client, replay_msgs()[1]).status_code == 200  # not marked seen while storage was down
+
+
+def test_db_outage_retry_is_exact(client: TestClient, monkeypatch) -> None:
+    """A message that failed to store while the DB was down and is re-sent afterwards gives exactly the
+    prediction it would have given without the outage (the streaming state is not fed that cycle twice)."""
+    msgs = replay_msgs(units=[34], prefix="DBX")
+    svc = client.app.state.ingest
+    for m in msgs[:30]:
+        post(client, m)
+    ref_client_msgs = replay_msgs(units=[34], prefix="DBY")  # same engine under another id, no outage
+    for m in ref_client_msgs[:32]:
+        last_ref = post(client, m).json()
+    good = svc.engine
+    monkeypatch.setattr(svc, "engine", sa.create_engine("postgresql+psycopg://x:y@127.0.0.1:1/none",
+                                                         connect_args={"connect_timeout": 1}))
+    assert post(client, msgs[30]).status_code == 503
+    assert post(client, msgs[30]).status_code == 503  # retried while still down
+    monkeypatch.setattr(svc, "engine", good)
+    assert post(client, msgs[30]).status_code == 200
+    got = post(client, msgs[31]).json()
+    assert abs(got["rul_pred"] - last_ref["rul_pred"]) < 1e-6
+    assert q(client, "SELECT count(*) AS n FROM telemetry WHERE asset_id = 'DBXFD001-T034'")[0]["n"] == 32
+
+
+def test_offline_after_restart_without_new_data(client: TestClient) -> None:
+    """An asset that stops sending while the backend is down (not in memory after the restart) still goes
+    OFFLINE, with an alert, once 3x its expected interval has passed."""
+    for m in replay_msgs(units=[34], prefix="OFX")[:10]:
+        post(client, m)
+    svc = client.app.state.ingest
+    svc.reset()
+    svc._db_sweep_t = 0.0
+    assert svc.check_offline(now=time.time() + 3600) >= 1
+    assert q(client, "SELECT state FROM assets WHERE asset_id = 'OFXFD001-T034'")[0]["state"] == "OFFLINE"
+    assert q(client, "SELECT count(*) AS n FROM alerts WHERE asset_id = 'OFXFD001-T034' "
+                     "AND to_state = 'OFFLINE'")[0]["n"] == 1
 
 
 def test_batch_endpoint(client: TestClient) -> None:

@@ -144,6 +144,7 @@ class IngestService:
         self.max_payload_bytes = max_payload_bytes
         self.assets: dict[str, AssetCtx] = {}
         self._assets_lock = threading.Lock()
+        self._db_sweep_t = 0.0
         self.stats = _Stats()
         self.rate = float(alerts_cfg.get("rate_limit_per_asset", 50))
         self.db_ok = True
@@ -169,7 +170,7 @@ class IngestService:
             if isinstance(res, Rejection):
                 results[i] = self._reject(raw, transport, topic_ids, res, 422)
                 continue
-            ctx = self._ctx(res.payload)
+            ctx = self._ctx(res.payload, t_recv)
             if ctx is None:
                 results[i] = UNAVAILABLE
                 continue
@@ -193,7 +194,6 @@ class IngestService:
 
     # ------------------------------------------------------------------ steps
     def _process_locked(self, work: list[_Item], ctxs: list[AssetCtx]) -> list[IngestResult]:
-        snapshot = {c.asset_id: (c.last_cycle, set(c.seen_cycles), list(c.recent_msg_ids)) for c in ctxs}
         live: list[_Item] = []
         for w in work:  # A: order/dedupe/new life + streaming state, sequential per asset
             self._stage(w)
@@ -221,10 +221,15 @@ class IngestService:
         except (SQLAlchemyError, psycopg.Error) as e:
             self.db_ok = False
             log.error("db_write_failed", n=len(live), error=str(e)[:200])
-            for c in ctxs:  # these cycles were not stored: let a redelivery through
-                c.last_cycle, c.seen_cycles, ids = snapshot[c.asset_id]
-                c.recent_msg_ids.clear()
-                c.recent_msg_ids.extend(ids)
+            # Nothing of this batch was stored, but staging already advanced each asset's in-memory state
+            # (dedupe sets, streaming features, life, health). Drop those contexts: the next message for the
+            # asset rebuilds it from what *is* stored (the restart path, _load_or_register), so a redelivery
+            # after the outage is processed exactly once and the features are not fed the same cycle twice.
+            with self._assets_lock:
+                for c in ctxs:
+                    if self.assets.get(c.asset_id) is c:
+                        del self.assets[c.asset_id]
+                self.metrics.active_assets.set(len(self.assets))
             for w in live:
                 w.result = UNAVAILABLE
             return [w.result or UNAVAILABLE for w in work]
@@ -330,7 +335,7 @@ class IngestService:
             return True
 
     # ------------------------------------------------------------------ asset registry
-    def _ctx(self, p: TelemetryPayload) -> AssetCtx | None:
+    def _ctx(self, p: TelemetryPayload, t_recv: float | None = None) -> AssetCtx | None:
         ctx = self.assets.get(p.asset_id)
         if ctx is not None:
             return ctx
@@ -339,7 +344,7 @@ class IngestService:
             if ctx is not None:
                 return ctx
             try:
-                ctx = self._load_or_register(p)
+                ctx = self._load_or_register(p, t_recv)
             except SQLAlchemyError as e:
                 self.db_ok = False
                 log.error("asset_register_failed", asset_id=p.asset_id, error=str(e)[:200])
@@ -348,7 +353,7 @@ class IngestService:
             self.metrics.active_assets.set(len(self.assets))
             return ctx
 
-    def _load_or_register(self, p: TelemetryPayload) -> AssetCtx:
+    def _load_or_register(self, p: TelemetryPayload, t_recv: float | None = None) -> AssetCtx:
         bundle = self.registry.bundles[p.profile]
         with self.engine.begin() as c:
             row = c.execute(select(m.assets).where(m.assets.c.asset_id == p.asset_id)).mappings().first()
@@ -359,7 +364,10 @@ class IngestService:
                 row = c.execute(select(m.assets).where(m.assets.c.asset_id == p.asset_id)).mappings().one()
             ctx = AssetCtx(row["asset_id"], row["site_id"], row["profile"], row["source"], row["life_id"],
                            AssetHealth(self.alert_cfg, State(row["state"])),
-                           AssetRuntime.create(bundle, self.cfg, _phase(p.asset_id)), tokens=self.rate, token_t=time.time())
+                           AssetRuntime.create(bundle, self.cfg, _phase(p.asset_id)), tokens=self.rate,
+                           # the bucket starts at the message's receipt time, so a backlog that queued up while
+                           # storage was down is rate-limited by when it arrived, not all at once now
+                           token_t=t_recv or time.time())
             if row["profile"] != str(p.profile):
                 log.warning("profile_changed", asset_id=p.asset_id, old=row["profile"], new=str(p.profile))
             # rehydrate rolling state from this life's stored telemetry (restart safety)
@@ -479,6 +487,55 @@ class IngestService:
                 if t:
                     n += 1
                     self._persist_transitions(ctx, [t], ctx.last_cycle or 0, ctx.health.last_rul)
+        if now - self._db_sweep_t >= 5.0:
+            self._db_sweep_t = now
+            n += self._check_offline_db(now, factor)
+        return n
+
+    def _check_offline_db(self, now: float, factor: float) -> int:
+        """Offline sweep for assets that are not in memory: they stopped sending while the backend was
+        down, or their context was evicted after a storage error and no message has come since. Without
+        this they would keep their last state forever after a restart."""
+        a = m.assets.c
+        try:
+            with self.engine.connect() as c:
+                rows = c.execute(select(a.asset_id, a.life_id, a.state, a.last_cycle, a.last_seen_at,
+                                        a.expected_interval_s)
+                                 .where(a.state.notin_([State.OFFLINE.value, State.NEW.value]),
+                                        a.last_seen_at.isnot(None))).mappings().all()
+        except SQLAlchemyError:
+            return 0
+        n = 0
+        for r in rows:
+            interval = max(float(r["expected_interval_s"] or 1.0), 0.05)
+            if r["asset_id"] in self.assets or now - r["last_seen_at"].timestamp() <= factor * interval:
+                continue
+            t = AssetHealth(self.alert_cfg, State(r["state"])).on_offline()
+            if t is None:
+                continue
+            row: dict[str, Any] = {
+                "asset_id": r["asset_id"], "life_id": r["life_id"], "cycle": r["last_cycle"] or 0,
+                "from_state": t.from_state.value, "to_state": t.to_state.value, "rul_pred": None,
+                "reason": t.reason, "created_at": datetime.now(UTC)}
+            try:
+                with self.engine.begin() as c:
+                    # only if nothing arrived since the read: a message in between owns the state now
+                    done = c.execute(update(m.assets).where(a.asset_id == r["asset_id"], a.state == r["state"],
+                                                            a.last_seen_at == r["last_seen_at"])
+                                     .values(state=State.OFFLINE.value)).rowcount
+                    if not done:
+                        continue
+                    row["alert_id"] = c.execute(insert(m.alerts).values(**row)
+                                                .returning(m.alerts.c.alert_id)).scalar_one()
+            except SQLAlchemyError as e:
+                log.error("alert_write_failed", asset_id=r["asset_id"], error=str(e)[:200])
+                continue
+            n += 1
+            self.metrics.alerts.labels(State.OFFLINE.value).inc()
+            self.publish({"type": "alert", "data": _jsonable(row)})
+            self.publish({"type": "asset_status", "data": {
+                "asset_id": r["asset_id"], "state": State.OFFLINE.value, "life_id": r["life_id"],
+                "last_cycle": r["last_cycle"], "last_seen": r["last_seen_at"].isoformat()}})
         return n
 
     def _status(self, ctx: AssetCtx) -> dict[str, Any]:

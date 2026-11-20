@@ -49,7 +49,10 @@ def test_gating_and_causality(fd001_small: pd.DataFrame) -> None:
     np.testing.assert_allclose(full[cols].to_numpy()[: len(part)], part[cols].to_numpy(), rtol=0, atol=1e-10)
 
 
-@pytest.mark.parametrize("profile_fixture,units", [("fd001", (1, 2, 3)), ("fd002", (5, 17, 101))])
+# FD003 unit 30 (333 cycles, near-constant epr) is the P5.1 regression: the old cumsum-based batch path gave
+# epr_std ~5e-8 there while the online path gave 0, and the model had learned to split on it.
+@pytest.mark.parametrize("profile_fixture,units",
+                         [("fd001", (1, 2, 3, 4)), ("fd002", (5, 17, 101)), ("fd003", (30, 68, 87))])
 def test_batch_equals_streaming(
     request: pytest.FixtureRequest, profile_fixture: str, units: tuple[int, ...]
 ) -> None:
@@ -67,7 +70,10 @@ def test_batch_equals_streaming(
                 rows.append(res.features)
         stream = np.vstack(rows)
         assert stream.shape == batch.shape
-        np.testing.assert_allclose(stream, batch, rtol=1e-7, atol=1e-8)
+        # window mean/std/slope are bit-identical by construction; EWM (lfilter vs recursion) to rounding
+        np.testing.assert_allclose(stream, batch, rtol=1e-12, atol=1e-12)
+        std_cols = [i for i, n in enumerate(cols) if n.endswith(("_std", "_mean", "_slope"))]
+        assert (stream[:, std_cols] == batch[:, std_cols]).all()
 
 
 def test_stream_warming_up(fd001: ProfileData) -> None:

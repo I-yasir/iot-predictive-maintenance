@@ -51,6 +51,7 @@ class MqttTransport:
         qos: int = 1,
         publish_timeout_s: float = 5.0,
         connect_timeout_s: float = 10.0,
+        require_connection: bool = True,
     ) -> None:
         self.prefix, self.qos, self.publish_timeout_s = prefix, qos, publish_timeout_s
         self.client = mqtt.Client(CallbackAPIVersion.VERSION2, client_id=client_id or f"pdm-{uuid.uuid4().hex[:8]}",
@@ -64,9 +65,13 @@ class MqttTransport:
         self.client.on_disconnect = self._on_disconnect
         self.client.connect_async(host, port, keepalive=30)
         self.client.loop_start()
-        if not self._connected.wait(connect_timeout_s):
+        if not self._connected.wait(connect_timeout_s) and require_connection:
             self.close()
             raise ConnectionError(self._refused or f"MQTT broker {host}:{port} not reachable")
+
+    @property
+    def connected(self) -> bool:
+        return self._connected.is_set()
 
     def _on_connect(self, client: mqtt.Client, userdata: Any, flags: Any, rc: Any, props: Any = None) -> None:
         if rc.is_failure:
@@ -129,6 +134,51 @@ class HttpTransport:
 
     def close(self) -> None:
         self.client.close()
+
+
+class FallbackTransport:
+    """MQTT first, HTTP when the broker is unreachable: the firmware's STREAMING / HTTP_FALLBACK behaviour
+    (iot/esp32/src/main.cpp). A message whose MQTT publish fails is re-sent over HTTP straight away, so nothing
+    is lost (if the PUBACK was merely late, ingest drops the copy by msg_id). After `fails_before_http`
+    consecutive MQTT failures it stays on HTTP and checks every `retry_mqtt_s` whether the broker is back."""
+
+    def __init__(self, mqtt_t: MqttTransport, http_t: HttpTransport, fails_before_http: int = 3,
+                 retry_mqtt_s: float = 30.0) -> None:
+        self.mqtt, self.http = mqtt_t, http_t
+        self.fails_before_http, self.retry_mqtt_s = fails_before_http, retry_mqtt_s
+        self.mode = "mqtt" if mqtt_t.connected else "http"
+        self.fails = 0 if self.mode == "mqtt" else fails_before_http
+        self.http_since = time.monotonic()
+        self.switches: list[tuple[float, str]] = []  # (unix time, new mode), for harness reports
+
+    def _switch(self, mode: str) -> None:
+        self.mode = mode
+        self.switches.append((time.time(), mode))
+        log.warning("transport -> %s", mode)
+        if mode == "http":
+            self.http_since = time.monotonic()
+
+    def send(self, payload: dict[str, Any], raw: bytes | None = None) -> SendResult:
+        if self.mode == "http" and time.monotonic() - self.http_since >= self.retry_mqtt_s:
+            self.http_since = time.monotonic()
+            if self.mqtt.connected:
+                self.fails = 0
+                self._switch("mqtt")
+        if self.mode == "mqtt":
+            res = self.mqtt.send(payload, raw)
+            if res.ok:
+                self.fails = 0
+                return res
+            self.fails += 1
+            if self.fails >= self.fails_before_http:
+                self._switch("http")
+        return self.http.send(payload, raw)
+
+    def close(self) -> None:
+        try:
+            self.mqtt.close()
+        finally:
+            self.http.close()
 
 
 class MemoryTransport:

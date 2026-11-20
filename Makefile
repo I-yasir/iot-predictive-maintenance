@@ -31,13 +31,20 @@ notebook:
 	jupyter lab ml/notebooks/01_data_audit_and_baseline.ipynb
 
 # ---- Phase 2: IoT (needs `pip install -e contracts -e "iot[dev]"` and a filled-in .env)
-.PHONY: up down passwd test-iot lint-iot harness replay-demo esp32-profile esp32-build
+.PHONY: up infra replay down passwd test-iot lint-iot harness replay-demo esp32-profile esp32-build
 
-up:               ## broker + TimescaleDB
-	docker compose up -d
+up:               ## whole stack in Docker: broker, TimescaleDB, backend :8000, dashboard :8080 (first build ~5 min)
+	docker compose --profile app up -d --build
+	@echo "Dashboard: http://localhost:8080 (password: DASHBOARD_PASSWORD in .env). Then: make replay"
+
+infra:            ## broker + TimescaleDB only (for make backend / make frontend-dev from source)
+	docker compose up -d mosquitto db
+
+replay:           ## Mode 1 demo on the running stack: 10 FD001 test engines at 10 cycles/s, looping
+	docker compose exec backend pdm-replay --profile FD001 --split test --units 37 41 36 56 90 66 79 38 1 85 --speed 10 --loop
 
 down:
-	docker compose down
+	docker compose --profile app down
 
 passwd:           ## regenerate config/mosquitto/passwd from .env, then restart the broker
 	sh config/mosquitto/make_passwd.sh && docker compose restart mosquitto

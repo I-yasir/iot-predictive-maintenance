@@ -17,5 +17,10 @@ def fd002() -> ProfileData:
 
 
 @pytest.fixture(scope="session")
+def fd003() -> ProfileData:
+    return load_profile("FD003")
+
+
+@pytest.fixture(scope="session")
 def fd001_small(fd001: ProfileData) -> pd.DataFrame:
     return fd001.train[fd001.train.unit <= 20].reset_index(drop=True)
