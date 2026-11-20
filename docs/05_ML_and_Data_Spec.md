@@ -250,6 +250,36 @@ Mean interval width dropped from 91–107 to 70–75 cycles. FD002/FD004 errors 
 LightGBM beats Ridge by 20–29 % in CV everywhere. False Critical rate remains 0 % for all profiles. Online buffer must hold `window` cycles (up to 100), not 64 (docs/04 §8 updated).
 **Residual gap (FD002/FD004):** error is dominated by engines with true RUL > 125 (RMSE ≈ 44), which any cap-125 model under-predicts, while alert-relevant buckets are fine (RUL ≤ 30: 3.4 / 7.3). Closing it without further test-set looks needs a different model class (M2 sequence model, owner approval per PRD) or revised PRD targets for multi-condition profiles. **No further tuning against the test set.**
 
+### 7.5.5 P1.11 — M2 sequence model (owner approved 2026-11-20; CV only)
+
+**Pre-registered before any M2 result was seen:**
+* Candidates: M2 causal 1D-CNN on regime-normalised sensor histories (`pdm_ml/models/seq.py`; sequence length 50 or 100, cap 125 or 150) and the mean of LightGBM + M2.
+* Scored on the identical GroupKFold folds, inner early-stopping split and truncation points as the LightGBM CV (`ml/pipelines/experiment_p111.py`).
+* **Adoption rule:** the best candidate by primary CV RMSE [10, 150] replaces LightGBM for a profile only if it improves primary RMSE by ≥ 0.5 cycles **and** the wide [5, 200] RMSE does not worsen by more than 0.2. Otherwise LightGBM stays and no test look is taken.
+* If adopted, exactly one further test evaluation (the fourth look), labelled post-hoc.
+
+**Results (CV, `ml/reports/p111_experiment.json`; LightGBM reproduces its p3 CV exactly, so the points are identical):**
+
+| Candidate | FD002 CV [10,150] / [5,200] | FD004 CV [10,150] / [5,200] |
+|---|---|---|
+| LightGBM p3 (active) | 15.82 / 22.11 | 17.11 / 26.82 |
+| M2, L 50 | 17.73 / 23.88 | 17.46 / 27.22 |
+| M2, L 100 | 15.43 / 22.24 | 15.96 / 26.03 |
+| M2, L 50, cap 150 | 19.51 / 22.40 | 20.38 / 24.86 |
+| **mean(LightGBM, M2 L 100)** | **14.76 / 21.61** | **15.84 / 26.04** |
+
+Rule outcome: the LightGBM + M2 (L 100) mean is adopted for **both** profiles (−1.06 and −1.27 primary; wide improves too). Bundles `20261120-p4` (FD002, FD004) = p3 LightGBM point/quantile models + preprocessor + `seq_model.pt`; M2 refit on all training engines for the median CV epoch count (12 / 11). Split-conformal margin recomputed for the ensemble on CV out-of-fold points: coverage 0.57 → 0.80 (q = 13.0) and 0.56 → 0.81 (q = 18.0). SHAP contributions still come from the LightGBM half (diagnostics only). FD001/FD003 keep p3.
+
+**Run 4 (post-hoc, fourth look at the FD002/FD004 test sets; treat as optimistic):**
+
+| Profile | Test RMSE run 3 → **4** | NASA score 3 → 4 | Coverage | Critical recall | RMSE by true RUL ≤30 / 31–75 / 76–125 / >125 |
+|---|---|---|---|---|---|
+| FD002 | 23.37 → **23.00** ❌ (≤ 22) | 3,745 → 3,853 ❌ (≤ 3,000) | 0.79 | 0.98 → 1.00 | 2.9 / 10.9 / 13.5 / 44.8 |
+| FD004 | 25.99 → **24.69** ❌ (≤ 24) | 4,492 → 3,761 ✅ | 0.78 | 0.89 → 0.91 | 5.7 / 13.7 / 15.1 / 42.7 |
+
+Every bucket at or below 125 cycles improved; the > 125 bucket (57 of 259 and 67 of 248 test engines) did not, and it dominates the miss. On engines with true RUL ≤ 125 the RMSE is 10.5 (FD002) and 12.6 (FD004); with the literature convention of capping the truth at 125 it is 10.0 and 11.9. Engines that far from failure look healthy, so no capped model (LightGBM or M2) can tell 130 from 190 remaining cycles; raising the cap made CV worse (cap-150 rows above). Remaining gap = a target-definition question for the owner, not a modelling one. **No further tuning against the test set.**
+
+
 ### 7.6 Diagnostics (component detail report)
 - **Per-sensor deviation**: z-score of current EWM value vs. the asset's own healthy baseline (first 20 cycles, regime-normalized; fallback to fleet training baseline when < 20 cycles).
 - **Subsystem score** (0–100): `min(100, 100 × mean(|z| of the subsystem's input sensors) / 6)`.

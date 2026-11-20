@@ -35,6 +35,7 @@ Design principles:
 | pyarrow | 20.0.0 | parquet interim files |
 | scikit-learn | 1.6.1 | scaling, KMeans regimes, GroupKFold, Ridge baseline, metrics |
 | lightgbm | 4.6.0 | primary RUL model (+ quantile models), `pred_contrib` explanations |
+| torch | 2.7.1 (CPU inference is enough) | P1.11 M2 sequence model (causal 1D-CNN); FD002/FD004 point = mean(LightGBM, M2) |
 | scipy | 1.15.3 | stats (KS drift tests) |
 | joblib | 1.5.1 | artifact serialization |
 | PyYAML | 6.0.2 | configs |
@@ -243,7 +244,7 @@ Max payload size 4 KB. Sensor keys use C-MAPSS symbols (Table 2 of the PDF) — 
 ## 6. Model Artifact Bundle
 
 `ml/artifacts/{profile}/{model_version}/` where `model_version = {YYYYMMDD}-{git_short_sha}`:
-`model_point.txt` (LightGBM), `model_q10.txt`, `model_q90.txt`, `preprocessor.joblib` (regime KMeans + per-regime scalers + feature list), `baselines.joblib` (diagnostic healthy baselines), `drift_reference.json`, `model_card.json` (metrics, data hashes, feature list, training config, library versions), `MANIFEST.sha256`. Backend verifies the manifest at startup and refuses unknown/mismatched bundles. `ml/artifacts/{profile}/CURRENT` holds the active version string.
+`model_point.txt` (LightGBM), `model_q10.txt`, `model_q90.txt`, `preprocessor.joblib` (regime KMeans + per-regime scalers + feature list), `baselines.joblib` (diagnostic healthy baselines), `drift_reference.json`, `model_card.json` (metrics, data hashes, feature list, training config, library versions), optional `seq_model.pt` (M2 weights; required when `model_card.seq_model` is set, and then the online service must keep the last `seq_model.seq_len` regime-normalised vectors per asset, see `pdm_ml.models.seq.SeqStream`), `MANIFEST.sha256`. Backend verifies the manifest at startup and refuses unknown/mismatched bundles. `ml/artifacts/{profile}/CURRENT` holds the active version string.
 
 ## 7. Security & Configuration Constraints
 

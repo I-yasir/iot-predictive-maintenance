@@ -118,10 +118,18 @@ class RULModel:
     q90: lgb.Booster
     conformal_q: float = 0.0
     meta: dict[str, Any] = field(default_factory=dict)
+    # P1.11: point = mean(LightGBM, M2 sequence model) when the bundle carries an M2 model
+    needs_seq: bool = False
 
-    def predict(self, X: pd.DataFrame | np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def predict(
+        self, X: pd.DataFrame | np.ndarray, seq_point: np.ndarray | None = None
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        if self.needs_seq and seq_point is None:
+            raise ValueError("this bundle's point estimate needs the M2 sequence prediction (seq_point)")
         Xa = X[self.feature_names] if isinstance(X, pd.DataFrame) else np.atleast_2d(X)
         pred = np.clip(self.point.predict(Xa), 0, self.cap)
+        if seq_point is not None:
+            pred = (pred + np.clip(np.asarray(seq_point, float), 0, self.cap)) / 2
         lo = np.clip(self.q10.predict(Xa), 0, self.cap)
         hi = np.clip(self.q90.predict(Xa), 0, self.cap)
         lo, hi = np.minimum(lo, pred), np.maximum(hi, pred)

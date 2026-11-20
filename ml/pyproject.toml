@@ -9,6 +9,7 @@ dependencies = [
     "pyarrow==20.0.0",
     "scikit-learn==1.6.1",
     "lightgbm==4.6.0",
+    "torch==2.7.1",  # P1.11 M2 sequence model (CPU is enough; ~1 s/epoch)
     "scipy==1.15.3",
     "joblib==1.5.1",
     "PyYAML==6.0.2",

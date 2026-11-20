@@ -33,12 +33,12 @@ TARGETS = {"FD001": (16.0, 500.0), "FD002": (22.0, 3000.0), "FD003": (16.0, 600.
 def evaluate_profile(profile: str) -> dict[str, Any]:
     b = load_bundle(artifacts_dir(), profile)
     d = load_profile(profile)
-    F = b.pipeline.transform(d.test)
+    F = b.predict_history(d.test)  # features + pred/lo/hi per cycle (LightGBM, or LightGBM+M2 mean)
     last = F.loc[F.groupby("unit").cycle.idxmax()].set_index("unit").sort_index()
     if len(last) != len(d.true_rul):
         raise RuntimeError(f"{profile}: {len(d.true_rul) - len(last)} test units shorter than min_cycles")
     y = d.true_rul.loc[last.index].to_numpy(float)
-    pred, lo, hi = b.model.predict(last)
+    pred, lo, hi = (last[c].to_numpy(float) for c in ("pred", "lo", "hi"))
     m = summarize(y, pred, lo, hi)
     m["rmse_by_true_rul"] = rmse_by_bucket(y, pred)
     rmse_t, score_t = TARGETS[profile]
@@ -58,7 +58,9 @@ def evaluate_profile(profile: str) -> dict[str, Any]:
         f"# Official test evaluation — {profile}",
         "",
         f"Model `{b.version}` · {int(m['n'])} test engines · last observed cycle vs `RUL_{profile}.txt` (uncapped truth).",
-        f"Selected config: `{b.card['training']['config']}` · conformal margin ±{b.model.conformal_q:.1f} cycles.",
+        f"Selected config: `{b.card['training']['config']}`"
+        + (" + M2 sequence model (point = mean)" if b.seq is not None else "")
+        + f" · conformal margin ±{b.model.conformal_q:.1f} cycles.",
         "",
         "| Metric | Value | Target |",
         "|---|---|---|",
@@ -71,7 +73,7 @@ def evaluate_profile(profile: str) -> dict[str, Any]:
         f"| Mean interval width | {m['mean_interval_width']:.1f} | |",
         f"| Critical recall | {m['critical_recall']:.2f} | ≥ 0.90 |",
         f"| False Critical among healthy | {m['false_critical_rate']:.1%} | ≤ 5% |",
-        f"| CV RMSE LightGBM / Ridge | {b.card['cv']['rmse_mean']:.2f} / {b.card['cv']['ridge_rmse_mean']:.2f} | ≥ 15% better {'✅' if m['beats_ridge_15pct_cv'] else '❌'} |",
+        f"| CV RMSE model / Ridge | {b.card['cv']['rmse_mean']:.2f} / {b.card['cv']['ridge_rmse_mean']:.2f} | ≥ 15% better {'✅' if m['beats_ridge_15pct_cv'] else '❌'} |",
         "",
         "RMSE by true RUL: " + " · ".join(f"{k}: {v:.1f}" for k, v in m["rmse_by_true_rul"].items()),
         "",
@@ -123,7 +125,7 @@ def _plots(
     fig, axes = plt.subplots(2, 3, figsize=(13, 6), sharey=True)
     for ax, u in zip(axes.ravel(), pick, strict=True):
         g = F[F.unit == u]
-        p, lo_g, hi_g = b.model.predict(g)
+        p, lo_g, hi_g = g.pred, g.lo, g.hi
         ax.fill_between(g.cycle, lo_g, hi_g, alpha=0.2)
         ax.plot(g.cycle, p, label="predicted")
         tr = truth[d.test.unit == u]
