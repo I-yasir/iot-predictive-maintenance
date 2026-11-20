@@ -2,8 +2,9 @@
 
 * Split by engine (GroupKFold); FeaturePipeline refit inside each fold on fold-train engines only.
 * Early stopping uses an inner hold-out of fold-train engines (never the validation fold).
-* Validation mimics the official test set: truncation points with true remaining life in [5, 200]
-  and at least min(31, life) cycles observed, scored against the UNCAPPED truth so caps are comparable.
+* Validation mimics the official test set: truncation points with true remaining life in [10, 150]
+  (documented challenge range, 10-150) and at least min(31, life) cycles observed, scored against the
+  UNCAPPED truth so caps are comparable.
 """
 
 from __future__ import annotations
@@ -21,7 +22,8 @@ from pdm_ml.features.pipeline import FeaturePipeline
 from pdm_ml.models.lgbm import RidgeBaseline, fit_lgbm, fit_quantile, lgb_params
 
 TRUNC_PER_UNIT = 5
-TRUNC_RUL_RANGE = (5, 200)
+# PDF (Saxena et al., §IV): "The test data set RULs ranged between 10 and 150 cycles"
+TRUNC_RUL_RANGE = (10, 150)
 MIN_OBSERVED = 31
 
 

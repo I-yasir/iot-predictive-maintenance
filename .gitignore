@@ -11,7 +11,6 @@ __pycache__/
 data/interim/
 data/processed/
 # model bundles (ml/artifacts/) ARE committed: ~1 MB per profile, verified by MANIFEST.sha256
-ml/reports/*.png
 
 # Secrets & local config
 .env

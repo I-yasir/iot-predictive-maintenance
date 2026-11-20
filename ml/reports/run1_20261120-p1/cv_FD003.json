@@ -1,0 +1,303 @@
+{
+  "profile": "FD003",
+  "selected": "cap=160;n_sensors=15;min_child_samples=20,num_leaves=15",
+  "cap": 160,
+  "sensors": [
+    "T24",
+    "T30",
+    "T50",
+    "P30",
+    "Nf",
+    "Nc",
+    "Ps30",
+    "phi",
+    "NRf",
+    "NRc",
+    "BPR",
+    "htBleed",
+    "W31",
+    "W32",
+    "epr"
+  ],
+  "params": {
+    "num_leaves": 15,
+    "min_child_samples": 20
+  },
+  "conformal_q": 8.086380546637884,
+  "baseline": {
+    "ridge_rmse_mean": 27.69501392422122,
+    "ridge_rmse_std": 3.4403223248309396
+  },
+  "cv": {
+    "rmse_mean": 20.63265152907738,
+    "rmse_std": 3.13382653050839,
+    "nasa_score_per_unit_mean": 14.927239108269493,
+    "ridge_rmse_mean": 27.69501392422122,
+    "interval_coverage_raw": 0.646,
+    "interval_coverage_conformal": 0.804
+  },
+  "bundle_version": "20261120-p1",
+  "runs": [
+    {
+      "config": "cap=125;n_sensors=15;min_child_samples=20,num_leaves=15",
+      "cap": 125,
+      "sensors": [
+        "T24",
+        "T30",
+        "T50",
+        "P30",
+        "Nf",
+        "Nc",
+        "Ps30",
+        "phi",
+        "NRf",
+        "NRc",
+        "BPR",
+        "htBleed",
+        "W31",
+        "W32",
+        "epr"
+      ],
+      "params": {
+        "num_leaves": 15,
+        "min_child_samples": 20
+      },
+      "rmse_mean": 24.411401400651158,
+      "rmse_std": 3.975365120463995,
+      "nasa_score_per_unit_mean": 17.021649957254485,
+      "best_iteration_mean": 362,
+      "fold_rmse": [
+        31.326996370795843,
+        19.411602108342652,
+        24.452750375314,
+        24.89523721125008,
+        21.970420937553207
+      ],
+      "ridge_rmse_mean": 27.69501392422122,
+      "ridge_rmse_std": 3.4403223248309396,
+      "stage": "grid"
+    },
+    {
+      "config": "cap=125;n_sensors=15;min_child_samples=50,num_leaves=15",
+      "cap": 125,
+      "sensors": [
+        "T24",
+        "T30",
+        "T50",
+        "P30",
+        "Nf",
+        "Nc",
+        "Ps30",
+        "phi",
+        "NRf",
+        "NRc",
+        "BPR",
+        "htBleed",
+        "W31",
+        "W32",
+        "epr"
+      ],
+      "params": {
+        "num_leaves": 15,
+        "min_child_samples": 50
+      },
+      "rmse_mean": 24.423582168624897,
+      "rmse_std": 4.078600072910601,
+      "nasa_score_per_unit_mean": 17.35035615584178,
+      "best_iteration_mean": 296,
+      "fold_rmse": [
+        31.433020539115397,
+        19.185778858840468,
+        24.469797986100033,
+        25.088450900098156,
+        21.940862558970437
+      ],
+      "stage": "grid"
+    },
+    {
+      "config": "cap=125;n_sensors=15;min_child_samples=20,num_leaves=31",
+      "cap": 125,
+      "sensors": [
+        "T24",
+        "T30",
+        "T50",
+        "P30",
+        "Nf",
+        "Nc",
+        "Ps30",
+        "phi",
+        "NRf",
+        "NRc",
+        "BPR",
+        "htBleed",
+        "W31",
+        "W32",
+        "epr"
+      ],
+      "params": {
+        "num_leaves": 31,
+        "min_child_samples": 20
+      },
+      "rmse_mean": 24.50959773116126,
+      "rmse_std": 3.931462310278589,
+      "nasa_score_per_unit_mean": 17.788412105110787,
+      "best_iteration_mean": 369,
+      "fold_rmse": [
+        31.31778647705342,
+        19.672595357852096,
+        24.23526902136492,
+        25.39596489954956,
+        21.926372899986294
+      ],
+      "stage": "grid"
+    },
+    {
+      "config": "cap=125;n_sensors=15;min_child_samples=50,num_leaves=31",
+      "cap": 125,
+      "sensors": [
+        "T24",
+        "T30",
+        "T50",
+        "P30",
+        "Nf",
+        "Nc",
+        "Ps30",
+        "phi",
+        "NRf",
+        "NRc",
+        "BPR",
+        "htBleed",
+        "W31",
+        "W32",
+        "epr"
+      ],
+      "params": {
+        "num_leaves": 31,
+        "min_child_samples": 50
+      },
+      "rmse_mean": 24.437598685000392,
+      "rmse_std": 3.9390351731894184,
+      "nasa_score_per_unit_mean": 17.719607355327604,
+      "best_iteration_mean": 242,
+      "fold_rmse": [
+        31.165007543190825,
+        19.333417043239347,
+        24.329015449027768,
+        25.278780180515188,
+        22.081773209028842
+      ],
+      "stage": "grid"
+    },
+    {
+      "config": "cap=110;n_sensors=15;min_child_samples=20,num_leaves=15",
+      "cap": 110,
+      "sensors": [
+        "T24",
+        "T30",
+        "T50",
+        "P30",
+        "Nf",
+        "Nc",
+        "Ps30",
+        "phi",
+        "NRf",
+        "NRc",
+        "BPR",
+        "htBleed",
+        "W31",
+        "W32",
+        "epr"
+      ],
+      "params": {
+        "num_leaves": 15,
+        "min_child_samples": 20
+      },
+      "rmse_mean": 28.894686839428807,
+      "rmse_std": 4.30447712892856,
+      "nasa_score_per_unit_mean": 39.93053242738739,
+      "best_iteration_mean": 584,
+      "fold_rmse": [
+        36.47979343713834,
+        23.41184699825303,
+        28.70896855840914,
+        29.19660537171561,
+        26.676219831627915
+      ],
+      "stage": "cap"
+    },
+    {
+      "config": "cap=140;n_sensors=15;min_child_samples=20,num_leaves=15",
+      "cap": 140,
+      "sensors": [
+        "T24",
+        "T30",
+        "T50",
+        "P30",
+        "Nf",
+        "Nc",
+        "Ps30",
+        "phi",
+        "NRf",
+        "NRc",
+        "BPR",
+        "htBleed",
+        "W31",
+        "W32",
+        "epr"
+      ],
+      "params": {
+        "num_leaves": 15,
+        "min_child_samples": 20
+      },
+      "rmse_mean": 21.882137836125878,
+      "rmse_std": 3.655352844941686,
+      "nasa_score_per_unit_mean": 11.368655658470079,
+      "best_iteration_mean": 197,
+      "fold_rmse": [
+        27.8255367456472,
+        16.90344073505641,
+        21.857528852472004,
+        23.180440063210185,
+        19.643742784243592
+      ],
+      "stage": "cap"
+    },
+    {
+      "config": "cap=160;n_sensors=15;min_child_samples=20,num_leaves=15",
+      "cap": 160,
+      "sensors": [
+        "T24",
+        "T30",
+        "T50",
+        "P30",
+        "Nf",
+        "Nc",
+        "Ps30",
+        "phi",
+        "NRf",
+        "NRc",
+        "BPR",
+        "htBleed",
+        "W31",
+        "W32",
+        "epr"
+      ],
+      "params": {
+        "num_leaves": 15,
+        "min_child_samples": 20
+      },
+      "rmse_mean": 20.63265152907738,
+      "rmse_std": 3.13382653050839,
+      "nasa_score_per_unit_mean": 14.927239108269493,
+      "best_iteration_mean": 256,
+      "fold_rmse": [
+        24.19866973250886,
+        15.703263096131273,
+        21.147351969769826,
+        23.451140837644434,
+        18.66283200933251
+      ],
+      "stage": "cap"
+    }
+  ]
+}

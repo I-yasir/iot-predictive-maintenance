@@ -155,8 +155,8 @@ Online buffer per asset holds the last 64 raw cycles + EWM state + first-5-cycle
 1. **Official test sets (`test_FD00x` + `RUL_FD00x`) are untouched until final evaluation** (P1.8). No tuning on them.
 2. **Split by engine unit, never by row.** Validation = `GroupKFold(n_splits=5, groups=unit)` on training units. Rows from one engine never appear in both fit and validation folds (prevents trajectory leakage).
 3. **All fitted preprocessors** (regime KMeans, scalers, drift reference, diagnostic baselines) are fit inside each fold on fold-train units only (sklearn-style pipeline per fold).
-4. **Truncated-validation sampling** (`pdm_ml/evaluate/cv.py`): test units are truncated before failure, so validation mimics that — for each validation unit, sample up to 5 truncation points among rows with ≥ min(31, life) observed cycles and true remaining life in **[5, 200]**, and score against the **uncapped** truth (so different caps are comparable). Early stopping uses an inner 15 % hold-out of fold-train engines, never the validation fold.
-   ⚠️ Known issue (2026-11-20): the PDF documents challenge test RULs of 10–150 cycles; FD001/FD003 test truths max at 145. The 200 upper bound over-rewards higher caps for those profiles (see §7.5.2).
+4. **Truncated-validation sampling** (`pdm_ml/evaluate/cv.py`): test units are truncated before failure, so validation mimics that — for each validation unit, sample up to 5 truncation points among rows with ≥ min(31, life) observed cycles and true remaining life in **[10, 150]** (the challenge test range documented in the PDF; was [5, 200] in run 1), and score against the **uncapped** truth (so different caps are comparable). Early stopping uses an inner 15 % hold-out of fold-train engines, never the validation fold.
+   ⚠️ The best cap depends on this range (Q17). FD002/FD004 test truths reach 195, beyond the documented range, and are better served by caps 140–160 (§7.5.3). Choosing the range per profile without looking at test labels is an open item.
 5. Training rows: all rows with `cycle ≥ 5` (warm-up gating).
 6. Hyperparameter search: Optuna is **not** used; a fixed small grid (§7.2) evaluated by 5-fold grouped CV mean truncated-RMSE.
 7. Final model per profile refit on all training units with the chosen config; evaluated once on the official test set; results written to `model_card.json` and must meet `01_PRD.md` §4.1.
@@ -217,6 +217,19 @@ Selection by grouped CV (4-point grid × caps {110, 125, 140, 160} × extra-sens
 
 CV RMSE here is against uncapped truth up to 200 cycles, so it is not comparable with the capped-truth CV numbers in §7.5.1. LightGBM beats Ridge by 16–26 % in CV for every profile. Conformal widening brings interval coverage into 0.80–0.94, but intervals are wide (mean 91–107 cycles), so the `LOW_CONFIDENCE` width rule (> 60) would fire on most predictions; revisit in P5.6.
 **Diagnosis:** the notebook (cap 125, uncapped CV not used) reached 12.6 RMSE on FD001/FD003. Higher caps help truths in 125–200, which barely exist in the FD001/FD003 test sets (max 145), and hurt the 76–125 bucket (FD001 20.8, FD003 26.3). Fix = truncation range per §6 item 4 warning. Re-evaluating after that fix is a second look at the test set and must be reported as such.
+
+### 7.5.3 Run 2: corrected validation range (post-hoc, ACTIVE bundles `20261120-p2`)
+
+**Disclosure:** run 1 (§7.5.2) was the single planned look at the official test set. After diagnosing the validation-range mismatch, the owner approved fixing it and re-evaluating. Run 2 numbers were produced **after the test set had been seen once**, so they are optimistic relative to a truly blind evaluation. Only one change was made between runs: `TRUNC_RUL_RANGE` (5, 200) → (10, 150), the range documented in the PDF. Grid, caps, sensors and code are otherwise identical. No per-profile cherry-picking between runs: run 2 bundles are active for **all** profiles, and run 1 stays archived in `ml/reports/run1_20261120-p1/` and `ml/artifacts/*/20261120-p1/`.
+
+| Profile | Selected config | CV RMSE Ridge / LGBM | Test RMSE (run 1 → run 2) | NASA score (run 1 → 2) | Coverage | Critical recall | False Critical | PRD target |
+|---|---|---|---|---|---|---|---|---|
+| FD001 | cap 125, leaves 15, min_child 20 | 19.7 / 15.7 | 16.2 → **14.9** | 411 → 293 | 0.88 | 0.92 | 0 % | ✅ |
+| FD002 | cap 125, leaves 15, min_child 50 | 20.1 / 17.7 | 22.8 → **24.8** | 3,962 → 5,433 | 0.72 | 0.98 | 0 % | ❌ (≤ 22; also beats Ridge by only 12 % < 15 %) |
+| FD003 | cap 125, leaves 15, min_child 20 | 19.5 / 14.9 | 17.9 → **12.8** | 1,085 → 269 | 0.87 | 0.90 | 0 % | ✅ |
+| FD004 | cap 125, leaves 31, min_child 50 | 21.6 / 18.3 | 22.6 → **26.1** | 4,395 → 4,513 | 0.71 | 0.87 | 0 % | ❌ (≤ 24) |
+
+Mean interval width dropped from 91–107 to 70–75 cycles. FD002/FD004 errors are concentrated in true RUL > 125 (RMSE 47 / 44), the region a cap of 125 cannot reach. Next lever, decided on CV only: profile-specific validation range derived from *training* data (e.g. the distribution of remaining life at random truncation of training engines), or a sequence model (M2) for FD002/FD004 — the latter needs owner approval per PRD.
 
 ### 7.6 Diagnostics (component detail report)
 - **Per-sensor deviation**: z-score of current EWM value vs. the asset's own healthy baseline (first 20 cycles, regime-normalized; fallback to fleet training baseline when < 20 cycles).
