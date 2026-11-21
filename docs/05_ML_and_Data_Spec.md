@@ -285,7 +285,16 @@ Every bucket at or below 125 cycles improved; the > 125 bucket (57 of 259 and 67
 
 ### 7.5.6 Run 5 — feature parity fix (P5.1, bundles `20261120-p5` / `-p6`)
 
-The window-sum fix above changes features slightly, so all profiles were retrained with the unchanged, pre-registered procedure (`train.py --version 20261120-p5`, then `train_m2.py --version 20261120-p6` for the FD002/FD004 ensembles). CV RMSE [10,150], old → new: FD001 14.29 → 14.19, FD002 15.82 → 15.88 (LightGBM half; `num_leaves` 31 → 15 selected), FD003 14.49 → 14.60 (`W` 70 → 100 selected), FD004 17.11 → 17.01; FD004 ensemble 15.84 → 15.79. CURRENT points to p5 (FD001, FD003) and p6 (FD002, FD004); p3/p4 are kept. Whether to take a fifth, disclosed test-set look to re-score these bundles is an owner decision (Phase 5 report); until then the official test numbers above are those of p3/p4.
+The window-sum fix above changes features slightly, so all profiles were retrained with the unchanged, pre-registered procedure (`train.py --version 20261120-p5`, then `train_m2.py --version 20261120-p6` for the FD002/FD004 ensembles). CV RMSE [10,150], old → new: FD001 14.29 → 14.19, FD002 15.82 → 15.88 (LightGBM half; `num_leaves` 31 → 15 selected), FD003 14.49 → 14.60 (`W` 70 → 100 selected), FD004 17.11 → 17.01; FD004 ensemble 15.84 → 15.79. CURRENT points to p5 (FD001, FD003) and p6 (FD002, FD004); p3/p4 are kept. **Run 5 (owner approved 2026-11-21; post-hoc, fifth look at all four test sets, a bug-fix check with no tuning; treat as optimistic):**
+
+| Profile | Test RMSE p3/p4 → **p5/p6** | NASA score | Coverage | Critical recall (point) |
+|---|---|---|---|---|
+| FD001 | 14.23 → **13.81** ✅ (≤ 16) | 284 → 268 ✅ | 0.91 | 0.92 → 0.88 |
+| FD002 (capped 125) | 10.02 → **10.04** ✅ (≤ 22) | 439 → 430 ✅ | 0.79 | 1.00 |
+| FD003 | 12.02 → **13.29** ✅ (≤ 16) | 286 → 333 ✅ | 0.93 | 0.85 → 0.90 |
+| FD004 (capped 125) | 11.87 → **11.86** ✅ (≤ 24) | 767 → 756 ✅ | 0.79 | 0.91 |
+
+The old FD003 12.02 was not what the live system scored: served, the p3 model gave 14.31, because its offline features carried the rounding leak. With p5 offline and served agree to 0.00003 cycles on every engine of every fleet (P5.1, `tests/e2e/reports/p51_mode1_batch.md`), so these are the numbers the live system scores. All RMSE and score targets are met. Open: FD001 point Critical recall 0.88 (three engines with true RUL 26–28 predicted 29–35). **No further tuning against the test set.**
 
 
 ### 7.6 Diagnostics (component detail report)

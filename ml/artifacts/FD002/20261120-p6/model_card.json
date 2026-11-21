@@ -225,7 +225,34 @@
   "conformal_q": 13.04046187650313,
   "derived_from": "20261120-p5",
   "point_estimate": "mean(LightGBM 20261120-p5, M2 m2_L100)",
-  "test": null,
+  "test": {
+    "n": 259.0,
+    "rmse": 23.04016018656561,
+    "nasa_score": 3896.684019663623,
+    "mae": 14.532354189950329,
+    "bias": -7.242756762373935,
+    "late_gt20_share": 0.05791505791505792,
+    "critical_recall": 1.0,
+    "false_critical_rate": 0.0,
+    "coverage_p10_p90": 0.7915057915057915,
+    "mean_interval_width": 85.68618816529724,
+    "rmse_by_true_rul": {
+      "<=30": 2.8723234964437636,
+      "31-75": 10.65963772385458,
+      "76-125": 13.529065009172914,
+      ">125": 44.9704888613473
+    },
+    "rmse_capped125": 10.041464903658236,
+    "nasa_score_capped125": 429.7105169381982,
+    "target_basis": "truth capped at 125",
+    "targets": {
+      "rmse": 22.0,
+      "nasa_score": 3000.0
+    },
+    "meets_rmse_target": true,
+    "meets_score_target": true,
+    "beats_ridge_15pct_cv": true
+  },
   "seq_model": {
     "file": "seq_model.pt",
     "seq_len": 100,

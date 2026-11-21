@@ -143,7 +143,34 @@
     "interval_coverage_raw": 0.56,
     "interval_coverage_conformal": 0.804
   },
-  "test": null,
+  "test": {
+    "n": 100.0,
+    "rmse": 13.814612747527947,
+    "nasa_score": 268.2912291722759,
+    "mae": 10.352832490835667,
+    "bias": -1.1740043805582325,
+    "late_gt20_share": 0.05,
+    "critical_recall": 0.88,
+    "false_critical_rate": 0.0,
+    "coverage_p10_p90": 0.91,
+    "mean_interval_width": 79.89727466139209,
+    "rmse_by_true_rul": {
+      "<=30": 3.9058538355631063,
+      "31-75": 9.257533189092957,
+      "76-125": 16.589627234119728,
+      ">125": 20.226899162576906
+    },
+    "rmse_capped125": 12.684611906828835,
+    "nasa_score_capped125": 238.53374046096857,
+    "target_basis": "uncapped truth",
+    "targets": {
+      "rmse": 16.0,
+      "nasa_score": 500.0
+    },
+    "meets_rmse_target": true,
+    "meets_score_target": true,
+    "beats_ridge_15pct_cv": true
+  },
   "profile": "FD001",
   "model_version": "20261120-p5",
   "feature_names": [

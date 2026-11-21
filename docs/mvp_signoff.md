@@ -23,31 +23,31 @@ Each PRD user story and success metric with its evidence. ✅ met · ⚠️ met 
 
 ## 2. ML metrics (PRD §4.1, official test sets)
 
-Offline, bundles p3 (FD001/FD003) and p4 (FD002/FD004), from `ml/reports/test_FD00x.md`. FD002/FD004 RMSE and score use truth capped at 125 (owner decision P1.11).
+Bundles p5 (FD001/FD003) and p6 (FD002/FD004), `ml/reports/test_FD00x.md`. FD002/FD004 RMSE and score use truth capped at 125 (owner decision P1.11). These are also the live system's numbers: the backend's predictions match the offline ones to 0.00003 cycles on all 707 test engines (P5.1).
 
 | Profile | RMSE (target) | NASA score (target) | Status |
 |---|---|---|---|
-| FD001 | 14.23 (≤ 16) | 284 (≤ 500) | ✅ |
-| FD002 | 10.02 (≤ 22) | 439 (≤ 3,000) | ✅ |
-| FD003 | 12.02 (≤ 16) | 286 (≤ 600) | ✅ offline; served value was 14.31 before the P5.1 fix (below) |
-| FD004 | 11.87 (≤ 24) | 767 (≤ 4,500) | ✅ |
+| FD001 | 13.81 (≤ 16) | 268 (≤ 500) | ✅ |
+| FD002 | 10.04 (≤ 22) | 430 (≤ 3,000) | ✅ |
+| FD003 | 13.29 (≤ 16) | 333 (≤ 600) | ✅ |
+| FD004 | 11.86 (≤ 24) | 756 (≤ 4,500) | ✅ |
 
 All four beat the Ridge baseline by ≥ 15 % CV RMSE.
 
-**P5.1 finding.** Served predictions matched offline ones for FD001, FD002 and FD004, but not FD003, because the training features leaked engine age through float rounding (`05` §5, Q18). The feature code is fixed (batch and stream bit-identical) and the models were retrained as bundles p5/p6 with the unchanged procedure (CV `05` §7.5.6). Their official test numbers need one more, disclosed test-set look, which is the owner's call.
+**P5.1 finding.** With the earlier bundles the live system matched the offline evaluation for FD001, FD002 and FD004 but not FD003 (served RMSE 14.31 vs 12.02 offline), because the training features leaked engine age through float rounding (`05` §5, Q18). The feature code was fixed, all models retrained with the unchanged procedure, and the owner approved one more, disclosed test-set look (the fifth) to score them (`05` §7.5.6).
 
 ## 3. Alert quality and calibration (PRD §4.1, served system)
 
-Scored on the backend's own alert state and interval at each engine's last cycle (`tests/e2e/reports/p56_alert_quality.md`, p3/p4 bundles). Not used for tuning.
+Scored on the backend's own alert state and interval at each engine's last cycle (`tests/e2e/reports/p56_alert_quality.md`, p5/p6 bundles). Not used for tuning.
 
 | Profile | Critical recall ≥ 0.90 | False Critical ≤ 5 % | Coverage ≥ 80 % (band 75–90 %) | Late > 20 ≤ 10 % |
 |---|---|---|---|---|
-| FD001 | 0.92 ✅ | 0 % ✅ | 0.93 ✅ (above band) | 6 % ✅ |
-| FD002 | 1.00 ✅ | 0 % ✅ | 0.79 ⚠️ (in band) | 5 % ✅ |
-| FD003 | 1.00 ✅ | 0 % ✅ | 0.92 ✅ (above band) | 5 % ✅ |
-| FD004 | 1.00 ✅ | 0.7 % ✅ | 0.78 ⚠️ (in band) | 6 % ✅ |
+| FD001 | 0.88 ❌ | 0 % ✅ | 0.91 ✅ (above band) | 5 % ✅ |
+| FD002 | 1.00 ✅ | 0 % ✅ | 0.79 ⚠️ (in band) | 6 % ✅ |
+| FD003 | 1.00 ✅ | 0 % ✅ | 0.93 ✅ (above band) | 6 % ✅ |
+| FD004 | 1.00 ✅ | 0.7 % ✅ | 0.79 ⚠️ (in band) | 6 % ✅ |
 
-Gaps: FD002/FD004 intervals cover 78–79 %, just under 80 %. FD001/FD003 intervals are wider than needed. FD001 units 52 and 53 (true RUL 29 and 26, predicted 29.8 and 29.2) end in WARNING because Critical needs consecutive confirmations.
+Gaps: FD001 misses Critical on 3 of 25 engines (units 18, 40 and 53: true RUL 28, 28 and 26, predicted 31.6, 35.0 and 28.8), which end in WARNING. All three are within a few cycles of the threshold. FD002/FD004 intervals cover 79 %, just under 80 %. FD001/FD003 intervals are wider than needed. Thresholds were not tuned on these results, because they come from the test sets.
 
 ## 4. System metrics (PRD §4.2)
 
@@ -63,7 +63,7 @@ Gaps: FD002/FD004 intervals cover 78–79 %, just under 80 %. FD001/FD003 interv
 ## 5. Open items
 
 1. P5.4 hardware run with the ESP32 board (US-12 and the ESP32 stream metric).
-2. Decision on re-scoring the p5/p6 bundles on the official test sets (P5.1).
+2. FD001 Critical recall 0.88 and FD002/FD004 coverage 0.79: closing them needs new validation work on training data (for example tuning the Critical confirmation count by CV), not the test sets.
 3. CI pipeline (P5.8): all suites pass locally but nothing runs them automatically.
 4. Ingest → dashboard latency is not timed end to end.
 5. At replay speeds above ~5 cycles/s an engine's Critical phase can be shorter than a second, so it shows in the alert feed but barely on the tile. Use speed 10 or lower for demos.
